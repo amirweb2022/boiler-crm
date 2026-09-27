@@ -30,6 +30,7 @@ function mapCompanyRow(row: any): Company {
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    type: row.type,
   };
 }
 
@@ -62,6 +63,7 @@ function mapVesselRow(row: any): Vessel {
     excludedAt: row.excluded_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    type: row.type,
   };
 }
 
@@ -72,7 +74,7 @@ function escapeForOrFilter(value: string): string {
 }
 
 export async function listCompaniesWithDetails(
-  filters: CompanyListFilters
+  filters: CompanyListFilters,
 ): Promise<PaginatedResult<CompanyWithDetails>> {
   const db = getSupabaseServerClient();
   const page = filters.page ?? 1;
@@ -88,7 +90,9 @@ export async function listCompaniesWithDetails(
 
   if (filters.search) {
     const s = escapeForOrFilter(filters.search.slice(0, 100));
-    query = query.or(`name.ilike.%${s}%,catalog_code.ilike.%${s}%,phone.ilike.%${s}%`);
+    query = query.or(
+      `name.ilike.%${s}%,catalog_code.ilike.%${s}%,phone.ilike.%${s}%`,
+    );
   }
   if (filters.province && filters.province !== "all") {
     query = query.eq("province", filters.province);
@@ -98,15 +102,23 @@ export async function listCompaniesWithDetails(
   if (error) throw error;
 
   let items: CompanyWithDetails[] = (data ?? []).map((row: any) => {
-    const trRow = Array.isArray(row.test_records) ? row.test_records[0] : row.test_records;
+    const trRow = Array.isArray(row.test_records)
+      ? row.test_records[0]
+      : row.test_records;
     const testRecord = trRow ? mapTestRecordRow(trRow) : null;
     const vessels: Vessel[] = (row.vessels ?? []).map(mapVesselRow);
-    const proximity = computeProximity(testRecord?.testDate ?? null, testRecord?.status ?? "pending");
+    const proximity = computeProximity(
+      testRecord?.testDate ?? null,
+      testRecord?.status ?? "pending",
+    );
     // مخزن معاف‌شده (excluded) هم مثل مخزن تست‌شده حساب می‌شود — چون
     // آگاهانه و با دلیل ثبت‌شده از این چرخه مستثنی شده، نه اینکه فراموش شده باشد.
     const allVesselsTested =
-      vessels.length > 0 && vessels.every((v) => v.status === "excluded" || v.tested);
-    const dateReached = testRecord ? daysUntil(testRecord.testDate) <= 0 : false;
+      vessels.length > 0 &&
+      vessels.every((v) => v.status === "excluded" || v.tested);
+    const dateReached = testRecord
+      ? daysUntil(testRecord.testDate) <= 0
+      : false;
     // طبق نیازمندی جدید: «ثبت انجام» علاوه‌بر تاریخ فرارسیده و تست همه
     // مخازن، به آپلود گواهی هم نیاز دارد.
     const canMarkDone =
@@ -115,7 +127,14 @@ export async function listCompaniesWithDetails(
       allVesselsTested &&
       Boolean(testRecord?.certificateUploaded);
 
-    return { ...mapCompanyRow(row), testRecord, vessels, proximity, allVesselsTested, canMarkDone };
+    return {
+      ...mapCompanyRow(row),
+      testRecord,
+      vessels,
+      proximity,
+      allVesselsTested,
+      canMarkDone,
+    };
   });
 
   if (filters.status && filters.status !== "all") {
@@ -128,7 +147,9 @@ export async function listCompaniesWithDetails(
   return { data: items, total: count ?? items.length, page, pageSize };
 }
 
-export async function createCompanyWithTestRecord(input: CreateCompanyInput): Promise<Company> {
+export async function createCompanyWithTestRecord(
+  input: CreateCompanyInput,
+): Promise<Company> {
   const db = getSupabaseServerClient();
 
   // نام/کد همیشه سمت سرور از کاتالوگ ثابت استخراج می‌شود؛ ورودی کلاینت
@@ -168,7 +189,10 @@ export async function createCompanyWithTestRecord(input: CreateCompanyInput): Pr
   return mapCompanyRow(company);
 }
 
-export async function updateCompany(id: string, input: UpdateCompanyInput): Promise<Company> {
+export async function updateCompany(
+  id: string,
+  input: UpdateCompanyInput,
+): Promise<Company> {
   const db = getSupabaseServerClient();
   const patch: Record<string, any> = {};
   if (input.phone) patch.phone = input.phone;
@@ -177,11 +201,19 @@ export async function updateCompany(id: string, input: UpdateCompanyInput): Prom
   if (input.address !== undefined) patch.address = input.address;
   if (input.status) patch.status = input.status;
 
-  const { data, error } = await db.from("companies").update(patch).eq("id", id).select().single();
+  const { data, error } = await db
+    .from("companies")
+    .update(patch)
+    .eq("id", id)
+    .select()
+    .single();
   if (error) throw error;
 
   if (input.testDate) {
-    await db.from("test_records").update({ test_date: input.testDate }).eq("company_id", id);
+    await db
+      .from("test_records")
+      .update({ test_date: input.testDate })
+      .eq("company_id", id);
   }
 
   return mapCompanyRow(data);
@@ -205,7 +237,9 @@ export async function deleteCompany(id: string): Promise<void> {
  *   cron روزانه فراخوانی می‌شود، نه اینجا).
  * - تیک تست تمام مخازن ریست می‌شود (باید برای چرخه جدید دوباره تست شوند)
  */
-export async function markTestDoneAndStartNextCycle(companyId: string): Promise<{
+export async function markTestDoneAndStartNextCycle(
+  companyId: string,
+): Promise<{
   testRecord: TestRecord;
 }> {
   const db = getSupabaseServerClient();
@@ -221,10 +255,14 @@ export async function markTestDoneAndStartNextCycle(companyId: string): Promise<
     throw new ValidationError("این تست قبلاً به‌عنوان انجام‌شده ثبت شده است");
   }
   if (daysUntil(current.test_date) > 0) {
-    throw new ValidationError("تاریخ تست هنوز فرانرسیده است؛ امکان ثبت انجام وجود ندارد");
+    throw new ValidationError(
+      "تاریخ تست هنوز فرانرسیده است؛ امکان ثبت انجام وجود ندارد",
+    );
   }
   if (!current.certificate_uploaded) {
-    throw new ValidationError("قبل از ثبت انجام، ابتدا باید گواهی آزمون آپلود شود");
+    throw new ValidationError(
+      "قبل از ثبت انجام، ابتدا باید گواهی آزمون آپلود شود",
+    );
   }
 
   const { data: company, error: companyFetchError } = await db
@@ -241,10 +279,14 @@ export async function markTestDoneAndStartNextCycle(companyId: string): Promise<
   if (vesselsError) throw vesselsError;
 
   if (!vessels || vessels.length === 0) {
-    throw new ValidationError("این شرکت هیچ مخزنی ثبت‌شده ندارد؛ ابتدا مخازن را اضافه کنید");
+    throw new ValidationError(
+      "این شرکت هیچ مخزنی ثبت‌شده ندارد؛ ابتدا مخازن را اضافه کنید",
+    );
   }
   if (!vessels.every((v) => v.status === "excluded" || v.tested)) {
-    throw new ValidationError("همه مخازن باید یا تست‌شده علامت بخورند یا با دلیل معاف شوند");
+    throw new ValidationError(
+      "همه مخازن باید یا تست‌شده علامت بخورند یا با دلیل معاف شوند",
+    );
   }
 
   const nextDate = nextYearShamsi(current.test_date);
@@ -273,7 +315,9 @@ export async function markTestDoneAndStartNextCycle(companyId: string): Promise<
     }));
 
   if (historyRows.length > 0) {
-    const { error: historyError } = await db.from("test_history").insert(historyRows);
+    const { error: historyError } = await db
+      .from("test_history")
+      .insert(historyRows);
     if (historyError) throw historyError;
   }
 
@@ -298,7 +342,12 @@ export async function markTestDoneAndStartNextCycle(companyId: string): Promise<
   // چرخه‌ای بود که الان بسته شد، نه برای همیشه.
   const { error: resetError } = await db
     .from("vessels")
-    .update({ tested: false, status: "active", exclusion_reason: null, excluded_at: null })
+    .update({
+      tested: false,
+      status: "active",
+      exclusion_reason: null,
+      excluded_at: null,
+    })
     .eq("company_id", companyId);
   if (resetError) throw resetError;
 
@@ -325,13 +374,18 @@ export async function clearStaleCertificates(nearDueDays: number): Promise<{
     .eq("certificate_uploaded", true);
   if (error) throw error;
 
-  const cleared: Array<{ testRecordId: string; certificatePath: string | null }> = [];
+  const cleared: Array<{
+    testRecordId: string;
+    certificatePath: string | null;
+  }> = [];
 
   for (const record of candidates ?? []) {
     if (daysUntil(record.test_date) > nearDueDays) continue; // هنوز نزدیک سررسید نشده
 
     if (record.certificate_path) {
-      const { error: removeError } = await db.storage.from("certificates").remove([record.certificate_path]);
+      const { error: removeError } = await db.storage
+        .from("certificates")
+        .remove([record.certificate_path]);
       if (removeError) {
         console.error("خطا در حذف فایل گواهی بیات:", removeError.message);
       }
@@ -339,11 +393,18 @@ export async function clearStaleCertificates(nearDueDays: number): Promise<{
 
     const { error: updateError } = await db
       .from("test_records")
-      .update({ certificate_uploaded: false, certificate_url: null, certificate_path: null })
+      .update({
+        certificate_uploaded: false,
+        certificate_url: null,
+        certificate_path: null,
+      })
       .eq("id", record.id);
     if (updateError) throw updateError;
 
-    cleared.push({ testRecordId: record.id, certificatePath: record.certificate_path });
+    cleared.push({
+      testRecordId: record.id,
+      certificatePath: record.certificate_path,
+    });
   }
 
   return { cleared };

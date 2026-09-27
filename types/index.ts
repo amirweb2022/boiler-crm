@@ -9,7 +9,7 @@ export type NotificationStatus = "pending" | "sent" | "failed";
 // admin: دسترسی کامل (ساخت/ویرایش/حذف شرکت و مخزن، ثبت گواهی، ثبت انجام)
 // tester: فقط اجازه تیک‌زدن/برداشتن تیک وضعیت مخازن را دارد
 export type AdminRole = "admin" | "tester";
-
+export type VesselType = "tank" | "boiler";
 export interface Admin {
   id: string;
   phone: string;
@@ -31,6 +31,7 @@ export interface Company {
   status: CompanyStatus;
   createdAt: string;
   updatedAt: string;
+  type: VesselType;
 }
 
 export interface TestRecord {
@@ -61,9 +62,15 @@ export interface Vessel {
   excludedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  type: VesselType;
 }
 
-export type TestProximity = "near_due" | "due" | "overdue" | "done" | "unscheduled";
+export type TestProximity =
+  | "near_due"
+  | "due"
+  | "overdue"
+  | "done"
+  | "unscheduled";
 
 // رکورد ترکیبی که در داشبورد (آکاردئون) نمایش داده می‌شود
 export interface CompanyWithDetails extends Company {
@@ -129,11 +136,13 @@ export interface CreateVesselInput {
   companyId: string;
   name: string;
   volume: string;
+  type: VesselType;
 }
 
 export interface UpdateVesselInput {
   name?: string;
   volume?: string;
+  type: VesselType;
 }
 
 // ---- گزارش ماهانه ----

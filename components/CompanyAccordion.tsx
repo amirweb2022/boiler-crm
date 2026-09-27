@@ -1,26 +1,52 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { toShamsiDisplay, toShamsiDateTime, daysUntil } from "../lib/date/shamsi";
-import type { CompanyWithDetails, TestProximity, TestStatus, PaginatedResult, Vessel } from "../types";
+import {
+  toShamsiDisplay,
+  toShamsiDateTime,
+  daysUntil,
+} from "../lib/date/shamsi";
+import type {
+  CompanyWithDetails,
+  TestProximity,
+  TestStatus,
+  PaginatedResult,
+  Vessel,
+} from "../types";
 import AddEditCompanyModal from "./AddEditCompanyModal";
 import AddEditVesselModal from "./AddEditVesselModal";
 import CertificateUploadModal from "./CertificateUploadModal";
-
-const PROXIMITY_LABEL: Record<TestProximity, { text: string; className: string }> = {
+import CertificateGenerateModal from "./CertificateGenerateModal";
+const PROXIMITY_LABEL: Record<
+  TestProximity,
+  { text: string; className: string }
+> = {
   near_due: { text: "نزدیک سررسید", className: "bg-orange-50 text-orange-700" },
   due: { text: "سررسید", className: "bg-amber-50 text-amber-700" },
   overdue: { text: "معوق", className: "bg-red-50 text-red-700" },
   done: { text: "انجام‌شده", className: "bg-green-50 text-green-700" },
-  unscheduled: { text: "برنامه‌ریزی‌شده", className: "bg-gray-100 text-gray-600" },
+  unscheduled: {
+    text: "برنامه‌ریزی‌شده",
+    className: "bg-gray-100 text-gray-600",
+  },
 };
 
-const PROVINCES = ["تهران", "اصفهان", "فارس", "خراسان رضوی", "آذربایجان شرقی", "گیلان"];
+const PROVINCES = [
+  "تهران",
+  "اصفهان",
+  "فارس",
+  "خراسان رضوی",
+  "آذربایجان شرقی",
+  "گیلان",
+];
 
 export default function CompanyAccordion() {
   const [rows, setRows] = useState<CompanyWithDetails[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [certificateVessel, setCertificateVessel] = useState<Vessel | null>(
+    null,
+  );
   const pageSize = 10;
 
   const [search, setSearch] = useState("");
@@ -31,11 +57,18 @@ export default function CompanyAccordion() {
   const [loading, setLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<CompanyWithDetails | null>(null);
-  const [uploadTarget, setUploadTarget] = useState<CompanyWithDetails | null>(null);
+  const [uploadTarget, setUploadTarget] = useState<CompanyWithDetails | null>(
+    null,
+  );
   const [showAddModal, setShowAddModal] = useState(false);
-  const [vesselModal, setVesselModal] = useState<{ companyId: string; vessel?: Vessel } | null>(null);
+  const [vesselModal, setVesselModal] = useState<{
+    companyId: string;
+    vessel?: Vessel;
+  } | null>(null);
   const [busyVesselId, setBusyVesselId] = useState<string | null>(null);
-  const [expandedReasonVesselId, setExpandedReasonVesselId] = useState<string | null>(null);
+  const [expandedReasonVesselId, setExpandedReasonVesselId] = useState<
+    string | null
+  >(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [myRole, setMyRole] = useState<"admin" | "tester" | null>(null);
 
@@ -79,10 +112,17 @@ export default function CompanyAccordion() {
   }
 
   async function handleMarkDone(company: CompanyWithDetails) {
-    if (!confirm(`چرخه تست شرکت «${company.name}» به‌عنوان انجام‌شده ثبت و برای سال بعد تنظیم شود؟`)) return;
+    if (
+      !confirm(
+        `چرخه تست شرکت «${company.name}» به‌عنوان انجام‌شده ثبت و برای سال بعد تنظیم شود؟`,
+      )
+    )
+      return;
     setBusyAction(company.id);
     try {
-      const res = await fetch(`/api/test-records/${company.id}/mark-done`, { method: "POST" });
+      const res = await fetch(`/api/test-records/${company.id}/mark-done`, {
+        method: "POST",
+      });
       const json = await res.json();
       if (!res.ok) {
         alert(json.error ?? "خطا در ثبت انجام تست");
@@ -120,7 +160,9 @@ export default function CompanyAccordion() {
   }
 
   async function handleExcludeVessel(vessel: Vessel) {
-    const reason = prompt(`دلیل معاف‌کردن مخزن «${vessel.name}» از این چرخه را بنویسید:`);
+    const reason = prompt(
+      `دلیل معاف‌کردن مخزن «${vessel.name}» از این چرخه را بنویسید:`,
+    );
     if (reason === null) return; // انصراف
     if (reason.trim().length < 5) {
       alert("دلیل باید حداقل ۵ کاراکتر باشد");
@@ -145,7 +187,8 @@ export default function CompanyAccordion() {
   }
 
   async function handleIncludeVessel(vessel: Vessel) {
-    if (!confirm(`معافیت مخزن «${vessel.name}» لغو شود؟ دوباره باید تست شود.`)) return;
+    if (!confirm(`معافیت مخزن «${vessel.name}» لغو شود؟ دوباره باید تست شود.`))
+      return;
     setBusyVesselId(vessel.id);
     try {
       const res = await fetch(`/api/vessels/${vessel.id}/exclude`, {
@@ -231,22 +274,32 @@ export default function CompanyAccordion() {
 
       {myRole === "tester" && (
         <p className="text-sm text-gray-500 bg-gray-100 rounded-lg px-3 py-2 mb-4">
-          شما با دسترسی «تستر» وارد شده‌اید — فقط می‌توانید وضعیت تست‌شدن مخازن را تیک بزنید.
+          شما با دسترسی «تستر» وارد شده‌اید — فقط می‌توانید وضعیت تست‌شدن مخازن
+          را تیک بزنید.
         </p>
       )}
 
       {/* لیست آکاردئونی شرکت‌ها */}
       <div className="space-y-3">
-        {loading && <p className="text-center text-gray-400 py-8">در حال بارگذاری...</p>}
-        {!loading && rows.length === 0 && <p className="text-center text-gray-400 py-8">رکوردی یافت نشد</p>}
+        {loading && (
+          <p className="text-center text-gray-400 py-8">در حال بارگذاری...</p>
+        )}
+        {!loading && rows.length === 0 && (
+          <p className="text-center text-gray-400 py-8">رکوردی یافت نشد</p>
+        )}
 
         {!loading &&
           rows.map((c) => {
             const isOpen = expandedId === c.id;
-            const dateReached = c.testRecord ? daysUntil(c.testRecord.testDate) <= 0 : false;
+            const dateReached = c.testRecord
+              ? daysUntil(c.testRecord.testDate) <= 0
+              : false;
 
             return (
-              <div key={c.id} className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+              <div
+                key={c.id}
+                className="rounded-xl border border-gray-200 bg-white overflow-hidden"
+              >
                 {/* هدر شرکت */}
                 <button
                   onClick={() => setExpandedId(isOpen ? null : c.id)}
@@ -254,15 +307,21 @@ export default function CompanyAccordion() {
                 >
                   <div className="flex items-center gap-3 flex-wrap">
                     <span className="font-semibold">{c.name}</span>
-                    <span className="text-xs text-gray-400">({c.catalogCode})</span>
-                    <span className={`text-xs px-2 py-1 rounded-full ${PROXIMITY_LABEL[c.proximity].className}`}>
+                    <span className="text-xs text-gray-400">
+                      ({c.catalogCode})
+                    </span>
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full ${PROXIMITY_LABEL[c.proximity].className}`}
+                    >
                       {PROXIMITY_LABEL[c.proximity].text}
                     </span>
                     <span className="text-xs text-gray-500" dir="ltr">
                       {toShamsiDisplay(c.testRecord?.testDate)}
                     </span>
                   </div>
-                  <span className="text-gray-400 text-sm">{isOpen ? "بستن ▲" : "نمایش مخازن ▼"}</span>
+                  <span className="text-gray-400 text-sm">
+                    {isOpen ? "بستن ▲" : "نمایش مخازن ▼"}
+                  </span>
                 </button>
 
                 {isOpen && (
@@ -276,10 +335,16 @@ export default function CompanyAccordion() {
                       </div>
                       {isAdmin && (
                         <div className="flex gap-3">
-                          <button onClick={() => setEditTarget(c)} className="text-xs text-gray-600 hover:text-brand-600">
+                          <button
+                            onClick={() => setEditTarget(c)}
+                            className="text-xs text-gray-600 hover:text-brand-600"
+                          >
                             ویرایش شرکت
                           </button>
-                          <button onClick={() => handleDeleteCompany(c)} className="text-xs text-red-500 hover:text-red-700">
+                          <button
+                            onClick={() => handleDeleteCompany(c)}
+                            className="text-xs text-red-500 hover:text-red-700"
+                          >
                             حذف شرکت
                           </button>
                         </div>
@@ -289,97 +354,147 @@ export default function CompanyAccordion() {
                     {/* لیست مخازن */}
                     <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
                       {c.vessels.length === 0 && (
-                        <p className="text-sm text-gray-400 text-center py-4">هنوز مخزنی اضافه نشده است</p>
+                        <p className="text-sm text-gray-400 text-center py-4">
+                          هنوز مخزنی اضافه نشده است
+                        </p>
                       )}
                       {c.vessels.map((v) => {
                         const isExcluded = v.status === "excluded";
                         const isReasonOpen = expandedReasonVesselId === v.id;
                         return (
                           <div key={v.id} className="px-4 py-2.5">
-                          <div className="flex items-center justify-between gap-2">
-                            {isExcluded ? (
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 whitespace-nowrap">
-                                    معاف از این چرخه
+                            <div className="flex items-center justify-between gap-2">
+                              {isExcluded ? (
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 whitespace-nowrap">
+                                      معاف از این چرخه
+                                    </span>
+                                    <span className="text-gray-500">
+                                      {v.name}
+                                    </span>
+                                    <span className="text-xs text-gray-400">
+                                      {v.volume}
+                                    </span>
+                                    {v.exclusionReason && (
+                                      <button
+                                        onClick={() =>
+                                          setExpandedReasonVesselId(
+                                            isReasonOpen ? null : v.id,
+                                          )
+                                        }
+                                        className="text-xs text-purple-600 hover:text-purple-700 underline"
+                                      >
+                                        {isReasonOpen
+                                          ? "بستن دلیل ▲"
+                                          : "نمایش دلیل ▾"}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <label
+                                  className={`flex items-center gap-3 flex-1 ${
+                                    dateReached
+                                      ? "cursor-pointer"
+                                      : "cursor-not-allowed opacity-60"
+                                  }`}
+                                  title={
+                                    !dateReached
+                                      ? "تاریخ آزمون هنوز فرانرسیده است"
+                                      : ""
+                                  }
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={v.tested}
+                                    disabled={
+                                      !dateReached || busyVesselId === v.id
+                                    }
+                                    onChange={() => handleToggleVessel(v)}
+                                    className="w-4 h-4 accent-brand-600"
+                                  />
+                                  <span
+                                    className={
+                                      v.tested
+                                        ? "line-through text-gray-400"
+                                        : ""
+                                    }
+                                  >
+                                    {v.name}
                                   </span>
-                                  <span className="text-gray-500">{v.name}</span>
-                                  <span className="text-xs text-gray-400">{v.volume}</span>
-                                  {v.exclusionReason && (
+                                  <span className="text-xs text-gray-400">
+                                    {v.volume}
+                                  </span>
+                                </label>
+                              )}
+                              {isAdmin && (
+                                <div className="flex gap-2 whitespace-nowrap">
+                                  {isExcluded ? (
                                     <button
-                                      onClick={() => setExpandedReasonVesselId(isReasonOpen ? null : v.id)}
-                                      className="text-xs text-purple-600 hover:text-purple-700 underline"
+                                      disabled={busyVesselId === v.id}
+                                      onClick={() => handleIncludeVessel(v)}
+                                      className="text-xs text-brand-600 hover:text-brand-700"
                                     >
-                                      {isReasonOpen ? "بستن دلیل ▲" : "نمایش دلیل ▾"}
+                                      لغو معافیت
+                                    </button>
+                                  ) : (
+                                    !v.tested && (
+                                      <button
+                                        disabled={busyVesselId === v.id}
+                                        onClick={() => handleExcludeVessel(v)}
+                                        className="text-xs text-purple-600 hover:text-purple-700"
+                                      >
+                                        معاف کردن
+                                      </button>
+                                    )
+                                  )}
+                                  <button
+                                    onClick={() =>
+                                      setVesselModal({
+                                        companyId: c.id,
+                                        vessel: v,
+                                      })
+                                    }
+                                    className="text-xs text-gray-500 hover:text-brand-600"
+                                  >
+                                    ویرایش
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteVessel(v)}
+                                    className="text-xs text-red-500 hover:text-red-700"
+                                  >
+                                    حذف
+                                  </button>
+                                  {!isExcluded && (
+                                    <button
+                                      onClick={() => setCertificateVessel(v)}
+                                      className="text-xs text-purple-700 hover:text-purple-900 font-medium"
+                                    >
+                                      تولید گواهی
                                     </button>
                                   )}
                                 </div>
-                              </div>
-                            ) : (
-                              <label
-                                className={`flex items-center gap-3 flex-1 ${
-                                  dateReached ? "cursor-pointer" : "cursor-not-allowed opacity-60"
-                                }`}
-                                title={!dateReached ? "تاریخ آزمون هنوز فرانرسیده است" : ""}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={v.tested}
-                                  disabled={!dateReached || busyVesselId === v.id}
-                                  onChange={() => handleToggleVessel(v)}
-                                  className="w-4 h-4 accent-brand-600"
-                                />
-                                <span className={v.tested ? "line-through text-gray-400" : ""}>{v.name}</span>
-                                <span className="text-xs text-gray-400">{v.volume}</span>
-                              </label>
-                            )}
-                            {isAdmin && (
-                              <div className="flex gap-2 whitespace-nowrap">
-                                {isExcluded ? (
-                                  <button
-                                    disabled={busyVesselId === v.id}
-                                    onClick={() => handleIncludeVessel(v)}
-                                    className="text-xs text-brand-600 hover:text-brand-700"
-                                  >
-                                    لغو معافیت
-                                  </button>
-                                ) : (
-                                  !v.tested && (
-                                    <button
-                                      disabled={busyVesselId === v.id}
-                                      onClick={() => handleExcludeVessel(v)}
-                                      className="text-xs text-purple-600 hover:text-purple-700"
-                                    >
-                                      معاف کردن
-                                    </button>
-                                  )
-                                )}
-                                <button
-                                  onClick={() => setVesselModal({ companyId: c.id, vessel: v })}
-                                  className="text-xs text-gray-500 hover:text-brand-600"
-                                >
-                                  ویرایش
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteVessel(v)}
-                                  className="text-xs text-red-500 hover:text-red-700"
-                                >
-                                  حذف
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                          {isExcluded && isReasonOpen && v.exclusionReason && (
-                            <div className="mt-2 mr-1 text-xs text-gray-600 bg-purple-50/60 border border-purple-100 rounded-lg px-3 py-2">
-                              <span className="font-medium">دلیل معافیت: </span>
-                              {v.exclusionReason}
-                              {v.excludedAt && (
-                                <span className="block text-gray-400 mt-1" dir="ltr">
-                                  {toShamsiDateTime(v.excludedAt)}
-                                </span>
                               )}
                             </div>
-                          )}
+                            {isExcluded &&
+                              isReasonOpen &&
+                              v.exclusionReason && (
+                                <div className="mt-2 mr-1 text-xs text-gray-600 bg-purple-50/60 border border-purple-100 rounded-lg px-3 py-2">
+                                  <span className="font-medium">
+                                    دلیل معافیت:{" "}
+                                  </span>
+                                  {v.exclusionReason}
+                                  {v.excludedAt && (
+                                    <span
+                                      className="block text-gray-400 mt-1"
+                                      dir="ltr"
+                                    >
+                                      {toShamsiDateTime(v.excludedAt)}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                           </div>
                         );
                       })}
@@ -397,43 +512,56 @@ export default function CompanyAccordion() {
                     {/* عملیات نهایی شرکت — فقط admin و فقط وقتی تاریخ فرارسیده،
                         همه مخازن تست‌شده، و گواهی آپلود شده باشد فعال است */}
                     {isAdmin && (
-                    <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200">
-                      <button
-                        disabled={!c.canMarkDone || busyAction === c.id}
-                        onClick={() => handleMarkDone(c)}
-                        className="text-sm bg-green-600 hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-lg px-4 py-2 font-medium"
-                        title={!c.canMarkDone ? "ابتدا باید تاریخ فرارسیده، همه مخازن تست‌شده، و گواهی آپلود شده باشد" : ""}
-                      >
-                        ثبت انجام (شروع چرخه بعد)
-                      </button>
-                      <button
-                        disabled={!c.allVesselsTested || !dateReached}
-                        onClick={() => setUploadTarget(c)}
-                        className="text-sm bg-brand-600 hover:bg-brand-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-lg px-4 py-2 font-medium"
-                        title={!c.allVesselsTested ? "ابتدا باید همه مخازن تست‌شده باشند" : ""}
-                      >
-                        {c.testRecord?.certificateUploaded ? "بروزرسانی گواهی" : "ثبت گواهی"}
-                      </button>
-                      {c.testRecord?.certificateUploaded && c.testRecord.certificateUrl && (
+                      <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200">
+                        <button
+                          disabled={!c.canMarkDone || busyAction === c.id}
+                          onClick={() => handleMarkDone(c)}
+                          className="text-sm bg-green-600 hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-lg px-4 py-2 font-medium"
+                          title={
+                            !c.canMarkDone
+                              ? "ابتدا باید تاریخ فرارسیده، همه مخازن تست‌شده، و گواهی آپلود شده باشد"
+                              : ""
+                          }
+                        >
+                          ثبت انجام (شروع چرخه بعد)
+                        </button>
+                        <button
+                          disabled={!c.allVesselsTested || !dateReached}
+                          onClick={() => setUploadTarget(c)}
+                          className="text-sm bg-brand-600 hover:bg-brand-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-lg px-4 py-2 font-medium"
+                          title={
+                            !c.allVesselsTested
+                              ? "ابتدا باید همه مخازن تست‌شده باشند"
+                              : ""
+                          }
+                        >
+                          {c.testRecord?.certificateUploaded
+                            ? "بروزرسانی گواهی"
+                            : "ثبت گواهی"}
+                        </button>
+                        {c.testRecord?.certificateUploaded &&
+                          c.testRecord.certificateUrl && (
+                            <a
+                              href={c.testRecord.certificateUrl}
+                              target="_blank"
+                              className="text-sm text-brand-600 underline self-center"
+                            >
+                              دانلود گواهی فعلی
+                            </a>
+                          )}
+                      </div>
+                    )}
+                    {!isAdmin &&
+                      c.testRecord?.certificateUploaded &&
+                      c.testRecord.certificateUrl && (
                         <a
                           href={c.testRecord.certificateUrl}
                           target="_blank"
-                          className="text-sm text-brand-600 underline self-center"
+                          className="inline-block mt-4 pt-4 border-t border-gray-200 text-sm text-brand-600 underline"
                         >
                           دانلود گواهی فعلی
                         </a>
                       )}
-                    </div>
-                    )}
-                    {!isAdmin && c.testRecord?.certificateUploaded && c.testRecord.certificateUrl && (
-                      <a
-                        href={c.testRecord.certificateUrl}
-                        target="_blank"
-                        className="inline-block mt-4 pt-4 border-t border-gray-200 text-sm text-brand-600 underline"
-                      >
-                        دانلود گواهی فعلی
-                      </a>
-                    )}
                   </div>
                 )}
               </div>
@@ -465,13 +593,22 @@ export default function CompanyAccordion() {
       </div>
 
       {showAddModal && (
-        <AddEditCompanyModal onClose={() => setShowAddModal(false)} onSaved={() => { setShowAddModal(false); fetchData(); }} />
+        <AddEditCompanyModal
+          onClose={() => setShowAddModal(false)}
+          onSaved={() => {
+            setShowAddModal(false);
+            fetchData();
+          }}
+        />
       )}
       {editTarget && (
         <AddEditCompanyModal
           company={editTarget}
           onClose={() => setEditTarget(null)}
-          onSaved={() => { setEditTarget(null); fetchData(); }}
+          onSaved={() => {
+            setEditTarget(null);
+            fetchData();
+          }}
         />
       )}
       {vesselModal && (
@@ -479,14 +616,27 @@ export default function CompanyAccordion() {
           companyId={vesselModal.companyId}
           vessel={vesselModal.vessel}
           onClose={() => setVesselModal(null)}
-          onSaved={() => { setVesselModal(null); fetchData(); }}
+          onSaved={() => {
+            setVesselModal(null);
+            fetchData();
+          }}
         />
       )}
       {uploadTarget && (
         <CertificateUploadModal
           company={uploadTarget}
           onClose={() => setUploadTarget(null)}
-          onUploaded={() => { setUploadTarget(null); fetchData(); }}
+          onUploaded={() => {
+            setUploadTarget(null);
+            fetchData();
+          }}
+        />
+      )}
+      {certificateVessel && (
+        <CertificateGenerateModal
+          vessel={certificateVessel}
+          onClose={() => setCertificateVessel(null)}
+          onGenerated={() => setCertificateVessel(null)}
         />
       )}
     </div>

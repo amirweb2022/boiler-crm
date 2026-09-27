@@ -52,11 +52,13 @@ export const createVesselSchema = z.object({
   companyId: uuidSchema,
   name: z.string().trim().min(1, "نام مخزن الزامی است").max(150),
   volume: z.string().trim().min(1, "حجم مخزن الزامی است").max(50),
+  type: z.enum(["tank", "boiler"]),
 });
 
 export const updateVesselSchema = z.object({
   name: z.string().trim().min(1).max(150).optional(),
   volume: z.string().trim().min(1).max(50).optional(),
+  type: z.enum(["tank", "boiler"]).optional(),
 });
 
 export const toggleVesselSchema = z.object({
