@@ -22,14 +22,26 @@ interface GenerateCertificateInput {
 }
 
 function getTemplateImageBase64(vesselType: VesselType): string {
-  const fileName = vesselType === "boiler" ? "boiler.png" : "tank.png";
-  const filePath = path.join(process.cwd(), "public", "certificate-templates", fileName);
+  const fileName =
+    vesselType === "boiler"
+      ? "certificate-template-boiler.png"
+      : "certificate-template-tank.png";
+  const filePath = path.join(
+    process.cwd(),
+    "public",
+    "certificate-templates",
+    fileName,
+  );
   const buffer = fs.readFileSync(filePath);
   return `data:image/png;base64,${buffer.toString("base64")}`;
 }
 
 function escapeHtml(str: string): string {
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function buildHtml(input: GenerateCertificateInput): string {
@@ -42,8 +54,8 @@ function buildHtml(input: GenerateCertificateInput): string {
         const value = input.values[field.key];
         if (!value) return "";
         const rightPx = CERTIFICATE_IMAGE_WIDTH - pos.x;
-        return `<div class="field-value" style="right:${rightPx}px; top:${pos.y - 14}px;">${escapeHtml(value)}</div>`;
-      })
+        return `<div class="field-value" style="right:${rightPx}px; top:${pos.y - 14}px; font-size:${field.font}px;">${escapeHtml(value)}</div>`;
+      }),
     )
     .join("\n");
 
@@ -66,7 +78,6 @@ function buildHtml(input: GenerateCertificateInput): string {
     direction: rtl;
     white-space: nowrap;
     font-weight: 700;
-    font-size: 23px;
     color: #000;
   }
 </style>
@@ -80,17 +91,26 @@ function buildHtml(input: GenerateCertificateInput): string {
 </html>`;
 }
 
-export async function generateCertificatePdf(input: GenerateCertificateInput): Promise<Buffer> {
+export async function generateCertificatePdf(
+  input: GenerateCertificateInput,
+): Promise<Buffer> {
   const html = buildHtml(input);
-
+  const chromePaths = [
+    String.raw`C:\Program Files\Google\Chrome\Application\chrome.exe`,
+    String.raw`C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`,
+    String.raw`${process.env.LOCALAPPDATA}\Google\Chrome\Application\chrome.exe`,
+  ];
+  const executablePath = chromePaths.find((path) => fs.existsSync(path));
+  if (!executablePath) {
+    throw new Error("Google Chrome was not found.");
+  }
   const browser = await puppeteer.launch({
+    executablePath,
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
-
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "load" });
     await page.evaluateHandle("document.fonts.ready");
 
     const pdfBuffer = await page.pdf({

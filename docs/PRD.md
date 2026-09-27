@@ -1,0 +1,59 @@
+# Product requirements and implemented behavior: boiler and pressure-vessel inspection CRM
+
+**Baseline:** repository working tree reviewed September 27, 2026. This is a description of observable behavior, not a proposal for unimplemented features. The Persian `README.md` supplies additional context; code and SQL take precedence where they differ.
+
+## Product and users
+
+The application helps a small inspection team track companies, their steam boilers and pressure vessels, annual test dates, completion evidence, reminders, and monthly inspection reports. The web UI is Persian and right-to-left. There are two authenticated roles:
+
+| Role | Implemented access |
+| --- | --- |
+| `admin` | Manage companies and vessels, record exclusions and completions, generate and upload certificates, download reports, configure report regions, and view audit logs. |
+| `tester` | View the company dashboard and mark or unmark vessels as tested once their due date has arrived. The dashboard also exposes links to current uploaded certificates. |
+
+Admins are provisioned by `scripts/create-admin.ts`, not by a sign-up page. Login accepts an Iranian mobile number and password; a signed HTTP-only session cookie lasts eight hours. `middleware.ts` checks the token for protected paths, while API routes reload the active admin and enforce roles. Failed logins are counted by phone in a rolling 15-minute window; five failures cause a temporary block. The history screen and API expose recorded actions to admins.
+
+## Inspection lifecycle
+
+**Model.** A company is selected from a fixed, server-verified catalog (`lib/data/companies-catalog.ts`), with a unique catalog code, phone, province, optional city/address, and status. Creating one also creates its single current `test_records` row. Each company can have multiple `vessels` of type `tank` or `boiler`, with a name, volume, tested flag, and optional cycle-specific exclusion. The current test date belongs to the company-level test record, not an individual vessel. Database dates are Gregorian ISO values; the UI presents and selects Jalali dates.
+
+**Dashboard.** Authenticated users can search companies by name, catalog code, or phone; filter by province, test status, or due-date proximity; and paginate results. `near_due` means 2–30 days remain, `due` means 0–1 day, and `overdue` means the date passed. Admins can add, edit, or delete companies and vessels. Company creation and vessel editing use separate forms; vessel type determines the generated-certificate template.
+
+**Test and exclusion rules.** An active vessel can be marked or unmarked tested only when its company's test date has arrived and the current record is pending. Admins may exclude a vessel for this cycle by providing a reason of at least five characters; exclusion clears its tested flag. An excluded vessel cannot be toggled, and an admin can revoke the exclusion. Excluded vessels count as satisfied for completing a cycle, but they are not recorded as approved tests. At least one vessel is required.
+
+**Completion (`ثبت انجام`).** An admin can upload a certificate once all vessels are tested or excluded; the dashboard enables that action only when the date has arrived. The upload API itself checks vessel state but does not check the date. Completing the cycle requires that the date has arrived, all vessels are tested or excluded, and `certificate_uploaded` is true. Completion snapshots each actually tested, non-excluded vessel into `test_history`, advances the current test date by one Jalali year on the same `test_records` row, increments `cycle_count`, records `done_at`, and immediately leaves the new cycle `pending`. It resets every vessel's tested flag and exclusion. The uploaded certificate remains linked until cleanup when the new cycle approaches its due date.
+
+**Acceptance scenarios.** Before the due date, test toggles and completion fail at the API. An excluded vessel with a recorded reason satisfies the all-vessels check but produces no approved `test_history` row. With zero vessels, completion fails. After completion, the next due date and cleared test/exclusion flags appear while the previous uploaded certificate is temporarily still available.
+
+## Certificates and notifications
+
+**Generated certificate PDF.** An admin can generate a PDF for a selected non-excluded vessel using separate scanned templates for tanks and boilers. `GET /api/certificates/fields?type=...` provides its editable field definitions; required thickness and safety-valve-pressure fields are checked again by the generation API. Company name/address, vessel volume, and current test date are loaded from the database. The server overlays escaped Persian text at coordinates defined in `lib/certificates/field-schema.ts`, prints the template with Puppeteer, stores field values and a generated certificate number in `generated_certificates`, and returns the PDF as a download. The PDF itself is not saved to Storage, and this action does **not** set `certificate_uploaded`.
+
+**Uploaded certificate.** Once a company has at least one vessel and all are tested or excluded, an admin can upload a PDF, JPEG, or PNG of at most 5 MiB against that company's current test record. The server gives it a randomized path in the `certificates` Supabase Storage bucket, stores its public URL/path in `test_records`, attempts to send the company an SMS containing the URL, and records the notification outcome. Upload success does not depend on SMS success; the UI currently presents a general success message even if SMS fails. Updating a certificate uploads a new file and replaces the recorded path; the old file is not removed by that update flow.
+
+**Reminders and cleanup.** `GET /api/sms/send-reminders` requires the `x-cron-secret` header and is intended to be called daily by an external scheduler; this repo has no scheduler configuration. For pending records exactly `SMS_REMINDER_DAYS_BEFORE` days from the test date (default 2), it sends one reminder per record per day and stores a `notifications` row with delivery-attempt status. `SMS_PROVIDER=mock` logs messages; `kavenegar` uses its REST API. The same call clears uploaded certificate fields and attempts to delete the stored file for pending records at or inside `CERTIFICATE_CLEAR_NEAR_DUE_DAYS` (default 30) days from their date. This cleanup applies to qualifying records without identifying which cycle produced the certificate; inspect the timing before changing that rule.
+
+**Acceptance scenarios.** Generating a PDF alone leaves completion unavailable. Uploading an allowed file after all vessels are satisfied sets the current certificate URL, even if SMS sending reports failure. A reminder run for a different day sends nothing; a repeat run on the configured day finds that day's notification and avoids another send. Cleanup clears the database link at the configured threshold.
+
+## Monthly reports and accountability
+
+`test_history` stores company and vessel snapshots at completion, so subsequent edits or deletions do not rewrite report row content. The admin-only reports screen offers the most recently completed Jalali month and months represented in history. The Excel workbook is built on demand from the requested month's history; an empty month produces a sheet explaining that no completed tests were found. A region mapping maintained by admins groups provinces into worksheets; an unmapped province gets its own sheet. Within a worksheet, entries with the same company name, vessel name, volume, and test date are combined into a row with a quantity. The workbook uses the configured inspector name/national ID and currently labels each included result approved. Report downloads and region-map edits are audited.
+
+The admin-only audit screen filters by actor phone, action, and entity type; shows timestamp, actor, entity, optional IP, and metadata; and paginates results. Audit inserts are attempted after the main operation; the logging helper does not enforce successful storage of each event.
+
+**Acceptance scenarios.** A month with no completed tests still downloads a valid workbook. Two identical tested vessels in one company and date aggregate to quantity two; excluded vessels do not appear. Removing a region mapping moves that province's report data to a worksheet named after the province. A tester receives an authorization error from report and audit APIs.
+
+## Architecture and operational contract
+
+Next.js 14 App Router serves React client components and route handlers. Route handlers authenticate, validate inputs (typically via Zod), call repository functions or feature services, and return JSON or a downloadable file. `lib/db/` uses a server-only Supabase service-role client; SQL enables RLS without public access policies. `supabase/schema.sql` describes a fresh installation and migrations `002`–`004` extend existing installations. Certificate uploads require a manually created `certificates` Storage bucket. `lib/reports/monthly-report.ts` uses ExcelJS; PDF generation uses Puppeteer and the committed image templates. The certificate renderer currently looks for a locally installed Google Chrome on Windows paths.
+
+Primary interfaces: `/login`, `/dashboard`, `/dashboard/reports`, `/dashboard/history`; API groups `/api/auth`, `/api/companies`, `/api/vessels`, `/api/test-records`, `/api/certificates`, `/api/sms`, `/api/reports`, `/api/region-map`, and `/api/audit-logs`. `.env.example` lists Supabase, session, SMS, cron, report, and app URL settings. Never include values from `.env.local` in documentation.
+
+## Current limitations and evidence boundaries
+
+- Company status and proximity filters run **after** database pagination, while `total` reflects the unfiltered company count. Filtered pages and totals can therefore be incomplete or misleading.
+- Cycle completion writes history, advances the test record, and resets vessels through separate Supabase operations without a transaction. A failure partway through can leave partial state; repeated calls can create duplicate history. Company creation likewise uses separate company and test-record inserts.
+- The uploaded-certificate API does not enforce the dashboard's due-date rule. The cron cleanup does not distinguish a certificate for the current cycle from a retained one for the previous cycle.
+- PDF template coordinates are annotated as estimates requiring visual review. PDF generation requires Chrome at hard-coded Windows locations; deployment on another platform is not established by the repository. Generated PDF metadata is stored, but generated file bytes are returned only to the caller.
+- Report download accepts a supplied Jalali year/month and does not restrict it to completed months. Audit recording is best-effort. The README contains future security and feature suggestions; they are not implemented requirements.
+- There is no committed automated test suite or scheduler definition. Runtime behavior requiring a live Supabase project, SMS provider, or browser has been inferred from the code and has not been verified against a deployed environment.

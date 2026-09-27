@@ -74,6 +74,7 @@ create table if not exists vessels (
   company_id        uuid not null references companies(id) on delete cascade,
   name              varchar(150) not null,
   volume            varchar(50)  not null,
+  type              varchar(20) not null default 'tank' check (type in ('tank', 'boiler')),
   tested            boolean not null default false,
   -- status: 'active' (باید تست شود) | 'excluded' (معاف از همین چرخه با دلیل)
   status            varchar(20) not null default 'active',
@@ -84,6 +85,18 @@ create table if not exists vessels (
 );
 
 create index if not exists idx_vessels_company on vessels(company_id);
+
+-- Generated PDF metadata; the PDF itself is returned to the browser.
+create table if not exists generated_certificates (
+  id                 uuid primary key default gen_random_uuid(),
+  certificate_number bigint generated always as identity unique,
+  vessel_id          uuid references vessels(id) on delete set null,
+  company_id         uuid references companies(id) on delete set null,
+  equipment_type     varchar(20) not null check (equipment_type in ('tank', 'boiler')),
+  field_values       jsonb not null,
+  generated_by       uuid references admins(id) on delete set null,
+  created_at         timestamptz not null default now()
+);
 
 -- ---------------------------------------------------------------------
 -- TEST_HISTORY
@@ -212,3 +225,4 @@ alter table audit_logs     enable row level security;
 alter table login_attempts enable row level security;
 alter table test_history        enable row level security;
 alter table province_region_map enable row level security;
+alter table generated_certificates enable row level security;

@@ -142,7 +142,7 @@ export interface CreateVesselInput {
 export interface UpdateVesselInput {
   name?: string;
   volume?: string;
-  type: VesselType;
+  type?: VesselType;
 }
 
 // ---- گزارش ماهانه ----
