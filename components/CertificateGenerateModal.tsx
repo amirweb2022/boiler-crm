@@ -78,21 +78,21 @@ export default function CertificateGenerateModal({ vessel, onClose, onGenerated 
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-bold mb-1">تولید گواهی — {vessel.name}</h2>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-gray-500 dark:text-slate-300 mb-4">
           نام/نشانی شرکت، حجم مخزن، و تاریخ آزمون خودکار از سیستم درج می‌شوند. فقط فیلدهای زیر را کامل کن.
         </p>
 
-        {loading && <p className="text-center text-gray-400 py-6">در حال بارگذاری فرم...</p>}
+        {loading && <p className="text-center text-gray-400 dark:text-slate-400 py-6">در حال بارگذاری فرم...</p>}
 
         {!loading && thicknessFields.length > 0 && (
-          <div className="mb-4 p-3 bg-amber-50 border border-amber-100 rounded-lg">
-            <p className="text-sm font-medium text-amber-800 mb-2">ضخامت‌های اندازه‌گیری‌شده (الزامی)</p>
+          <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/50 border border-amber-100 dark:border-amber-800 rounded-lg">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">ضخامت‌های اندازه‌گیری‌شده (الزامی)</p>
             <div className="grid grid-cols-2 gap-3">
               {thicknessFields.map((f) => (
                 <div key={f.key}>
-                  <label className="block text-xs text-gray-600 mb-1">{f.label}</label>
+                  <label className="block text-xs text-gray-600 dark:text-slate-300 mb-1">{f.label}</label>
                   <input
                     className="input"
                     value={values[f.key] ?? ""}
@@ -108,8 +108,8 @@ export default function CertificateGenerateModal({ vessel, onClose, onGenerated 
           <div className="space-y-3 mb-4">
             {otherFields.map((f) => (
               <div key={f.key}>
-                <label className="block text-sm mb-1 text-gray-700">
-                  {f.label} {f.required && <span className="text-red-500">*</span>}
+                <label className="block text-sm mb-1 text-gray-700 dark:text-slate-200">
+                  {f.label} {f.required && <span className="text-red-500 dark:text-red-400">*</span>}
                 </label>
                 <input
                   className="input"
@@ -121,7 +121,7 @@ export default function CertificateGenerateModal({ vessel, onClose, onGenerated 
           </div>
         )}
 
-        {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-3">{error}</p>}
+        {error && <p className="text-sm text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-950/50 rounded-lg px-3 py-2 mb-3">{error}</p>}
 
         <div className="flex gap-2 mt-2">
           <button
@@ -131,7 +131,7 @@ export default function CertificateGenerateModal({ vessel, onClose, onGenerated 
           >
             {generating ? "در حال ساخت PDF..." : "تایید و دانلود گواهی"}
           </button>
-          <button onClick={onClose} className="flex-1 border border-gray-300 rounded-lg py-2.5 font-medium">
+          <button onClick={onClose} className="flex-1 border border-gray-300 dark:border-slate-600 rounded-lg py-2.5 font-medium">
             انصراف
           </button>
         </div>

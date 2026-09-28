@@ -86,11 +86,11 @@ export default function AuditLogList() {
   }, [myRole, fetchData]);
 
   if (myRole === "loading") {
-    return <p className="text-center text-gray-400 py-8">در حال بررسی دسترسی...</p>;
+    return <p className="text-center text-gray-400 dark:text-slate-400 py-8">در حال بررسی دسترسی...</p>;
   }
   if (myRole !== "admin") {
     return (
-      <p className="text-sm text-red-600 bg-red-50 rounded-lg px-4 py-3">
+      <p className="text-sm text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-950/50 rounded-lg px-4 py-3">
         شما دسترسی به بخش تاریخچه تغییرات را ندارید — این بخش فقط برای نقش «admin» است.
       </p>
     );
@@ -157,9 +157,9 @@ export default function AuditLogList() {
       </div>
 
       {/* لیست تاریخچه */}
-      <div className="rounded-xl border border-gray-200 bg-white divide-y divide-gray-100">
-        {loading && <p className="text-center text-gray-400 py-8">در حال بارگذاری...</p>}
-        {!loading && rows.length === 0 && <p className="text-center text-gray-400 py-8">رکوردی یافت نشد</p>}
+      <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 divide-y divide-gray-100 dark:divide-slate-700">
+        {loading && <p className="text-center text-gray-400 dark:text-slate-400 py-8">در حال بارگذاری...</p>}
+        {!loading && rows.length === 0 && <p className="text-center text-gray-400 dark:text-slate-400 py-8">رکوردی یافت نشد</p>}
 
         {!loading &&
           rows.map((log) => {
@@ -168,30 +168,30 @@ export default function AuditLogList() {
               <div key={log.id}>
                 <button
                   onClick={() => setExpandedId(isExpanded ? null : log.id)}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-right hover:bg-gray-50"
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-right hover:bg-gray-50 dark:hover:bg-slate-800"
                 >
                   <div className="flex items-center gap-3 flex-wrap text-sm">
-                    <span className="text-gray-400 whitespace-nowrap" dir="ltr">
+                    <span className="text-gray-400 dark:text-slate-400 whitespace-nowrap" dir="ltr">
                       {toShamsiDateTime(log.createdAt)}
                     </span>
                     <span className="font-medium">{log.adminFullName || log.adminPhone || "نامشخص"}</span>
-                    <span className="text-gray-500">{actionLabel(log.action)}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                    <span className="text-gray-500 dark:text-slate-300">{actionLabel(log.action)}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300">
                       {entityLabel(log.entityType)}
                     </span>
                   </div>
-                  <span className="text-gray-400 text-xs">{isExpanded ? "بستن ▲" : "جزئیات ▼"}</span>
+                  <span className="text-gray-400 dark:text-slate-400 text-xs">{isExpanded ? "بستن ▲" : "جزئیات ▼"}</span>
                 </button>
 
                 {isExpanded && (
-                  <div className="px-4 pb-4 text-xs text-gray-500 bg-gray-50/50">
+                  <div className="px-4 pb-4 text-xs text-gray-500 dark:text-slate-300 bg-gray-50/50 dark:bg-slate-800/60">
                     <div className="grid grid-cols-2 gap-2 mb-2">
                       <span>شماره ادمین: {log.adminPhone ?? "—"}</span>
                       <span dir="ltr">IP: {log.ipAddress ?? "—"}</span>
                       <span className="col-span-2 break-all">شناسه رکورد: {log.entityId ?? "—"}</span>
                     </div>
                     {log.metadata && (
-                      <pre className="bg-white border border-gray-200 rounded-lg p-3 overflow-x-auto text-left" dir="ltr">
+                      <pre className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg p-3 overflow-x-auto text-left" dir="ltr">
                         {JSON.stringify(log.metadata, null, 2)}
                       </pre>
                     )}
@@ -203,7 +203,7 @@ export default function AuditLogList() {
       </div>
 
       {/* صفحه‌بندی */}
-      <div className="flex items-center justify-between mt-4 text-sm text-gray-500">
+      <div className="flex items-center justify-between mt-4 text-sm text-gray-500 dark:text-slate-300">
         <span>
           مجموع {total} رکورد — صفحه {page} از {totalPages}
         </span>
@@ -211,14 +211,14 @@ export default function AuditLogList() {
           <button
             disabled={page <= 1}
             onClick={() => setPage((p) => p - 1)}
-            className="px-3 py-1.5 rounded-lg border border-gray-300 disabled:opacity-40"
+            className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-slate-600 disabled:opacity-40"
           >
             قبلی
           </button>
           <button
             disabled={page >= totalPages}
             onClick={() => setPage((p) => p + 1)}
-            className="px-3 py-1.5 rounded-lg border border-gray-300 disabled:opacity-40"
+            className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-slate-600 disabled:opacity-40"
           >
             بعدی
           </button>

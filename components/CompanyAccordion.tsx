@@ -21,13 +21,13 @@ const PROXIMITY_LABEL: Record<
   TestProximity,
   { text: string; className: string }
 > = {
-  near_due: { text: "نزدیک سررسید", className: "bg-orange-50 text-orange-700" },
-  due: { text: "سررسید", className: "bg-amber-50 text-amber-700" },
-  overdue: { text: "معوق", className: "bg-red-50 text-red-700" },
-  done: { text: "انجام‌شده", className: "bg-green-50 text-green-700" },
+  near_due: { text: "نزدیک سررسید", className: "bg-orange-50 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300" },
+  due: { text: "سررسید", className: "bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300" },
+  overdue: { text: "معوق", className: "bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300" },
+  done: { text: "انجام‌شده", className: "bg-green-50 dark:bg-green-950/50 text-green-700 dark:text-green-300" },
   unscheduled: {
     text: "برنامه‌ریزی‌شده",
-    className: "bg-gray-100 text-gray-600",
+    className: "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300",
   },
 };
 
@@ -273,7 +273,7 @@ export default function CompanyAccordion() {
       </div>
 
       {myRole === "tester" && (
-        <p className="text-sm text-gray-500 bg-gray-100 rounded-lg px-3 py-2 mb-4">
+        <p className="text-sm text-gray-500 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 rounded-lg px-3 py-2 mb-4">
           شما با دسترسی «تستر» وارد شده‌اید — فقط می‌توانید وضعیت تست‌شدن مخازن
           را تیک بزنید.
         </p>
@@ -282,10 +282,10 @@ export default function CompanyAccordion() {
       {/* لیست آکاردئونی شرکت‌ها */}
       <div className="space-y-3">
         {loading && (
-          <p className="text-center text-gray-400 py-8">در حال بارگذاری...</p>
+          <p className="text-center text-gray-400 dark:text-slate-400 py-8">در حال بارگذاری...</p>
         )}
         {!loading && rows.length === 0 && (
-          <p className="text-center text-gray-400 py-8">رکوردی یافت نشد</p>
+          <p className="text-center text-gray-400 dark:text-slate-400 py-8">رکوردی یافت نشد</p>
         )}
 
         {!loading &&
@@ -298,16 +298,16 @@ export default function CompanyAccordion() {
             return (
               <div
                 key={c.id}
-                className="rounded-xl border border-gray-200 bg-white overflow-hidden"
+                className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden"
               >
                 {/* هدر شرکت */}
                 <button
                   onClick={() => setExpandedId(isOpen ? null : c.id)}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-right hover:bg-gray-50"
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-right hover:bg-gray-50 dark:hover:bg-slate-800"
                 >
                   <div className="flex items-center gap-3 flex-wrap">
                     <span className="font-semibold">{c.name}</span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-400 dark:text-slate-400">
                       ({c.catalogCode})
                     </span>
                     <span
@@ -315,19 +315,19 @@ export default function CompanyAccordion() {
                     >
                       {PROXIMITY_LABEL[c.proximity].text}
                     </span>
-                    <span className="text-xs text-gray-500" dir="ltr">
+                    <span className="text-xs text-gray-500 dark:text-slate-300" dir="ltr">
                       {toShamsiDisplay(c.testRecord?.testDate)}
                     </span>
                   </div>
-                  <span className="text-gray-400 text-sm">
+                  <span className="text-gray-400 dark:text-slate-400 text-sm">
                     {isOpen ? "بستن ▲" : "نمایش مخازن ▼"}
                   </span>
                 </button>
 
                 {isOpen && (
-                  <div className="border-t border-gray-100 px-4 py-4 bg-gray-50/50">
+                  <div className="border-t border-gray-100 dark:border-slate-700 px-4 py-4 bg-gray-50/50 dark:bg-slate-800/60">
                     {/* اطلاعات تماس + عملیات شرکت */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-4 text-sm text-gray-600">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-4 text-sm text-gray-600 dark:text-slate-300">
                       <div className="flex gap-4 flex-wrap">
                         <span dir="ltr">📞 {c.phone}</span>
                         <span>📍 {c.province}</span>
@@ -337,13 +337,13 @@ export default function CompanyAccordion() {
                         <div className="flex gap-3">
                           <button
                             onClick={() => setEditTarget(c)}
-                            className="text-xs text-gray-600 hover:text-brand-600"
+                            className="text-xs text-gray-600 dark:text-slate-300 hover:text-brand-600 dark:hover:text-blue-400"
                           >
                             ویرایش شرکت
                           </button>
                           <button
                             onClick={() => handleDeleteCompany(c)}
-                            className="text-xs text-red-500 hover:text-red-700"
+                            className="text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                           >
                             حذف شرکت
                           </button>
@@ -352,9 +352,9 @@ export default function CompanyAccordion() {
                     </div>
 
                     {/* لیست مخازن */}
-                    <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
+                    <div className="bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700 divide-y divide-gray-100 dark:divide-slate-700">
                       {c.vessels.length === 0 && (
-                        <p className="text-sm text-gray-400 text-center py-4">
+                        <p className="text-sm text-gray-400 dark:text-slate-400 text-center py-4">
                           هنوز مخزنی اضافه نشده است
                         </p>
                       )}
@@ -367,13 +367,13 @@ export default function CompanyAccordion() {
                               {isExcluded ? (
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 whitespace-nowrap">
+                                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 whitespace-nowrap">
                                       معاف از این چرخه
                                     </span>
-                                    <span className="text-gray-500">
+                                    <span className="text-gray-500 dark:text-slate-300">
                                       {v.name}
                                     </span>
-                                    <span className="text-xs text-gray-400">
+                                    <span className="text-xs text-gray-400 dark:text-slate-400">
                                       {v.volume}
                                     </span>
                                     {v.exclusionReason && (
@@ -383,7 +383,7 @@ export default function CompanyAccordion() {
                                             isReasonOpen ? null : v.id,
                                           )
                                         }
-                                        className="text-xs text-purple-600 hover:text-purple-700 underline"
+                                        className="text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 underline"
                                       >
                                         {isReasonOpen
                                           ? "بستن دلیل ▲"
@@ -417,13 +417,13 @@ export default function CompanyAccordion() {
                                   <span
                                     className={
                                       v.tested
-                                        ? "line-through text-gray-400"
+                                        ? "line-through text-gray-400 dark:text-slate-400"
                                         : ""
                                     }
                                   >
                                     {v.name}
                                   </span>
-                                  <span className="text-xs text-gray-400">
+                                  <span className="text-xs text-gray-400 dark:text-slate-400">
                                     {v.volume}
                                   </span>
                                 </label>
@@ -434,7 +434,7 @@ export default function CompanyAccordion() {
                                     <button
                                       disabled={busyVesselId === v.id}
                                       onClick={() => handleIncludeVessel(v)}
-                                      className="text-xs text-brand-600 hover:text-brand-700"
+                                      className="text-xs text-brand-600 dark:text-blue-400 hover:text-brand-700 dark:hover:text-blue-300"
                                     >
                                       لغو معافیت
                                     </button>
@@ -443,7 +443,7 @@ export default function CompanyAccordion() {
                                       <button
                                         disabled={busyVesselId === v.id}
                                         onClick={() => handleExcludeVessel(v)}
-                                        className="text-xs text-purple-600 hover:text-purple-700"
+                                        className="text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
                                       >
                                         معاف کردن
                                       </button>
@@ -456,20 +456,20 @@ export default function CompanyAccordion() {
                                         vessel: v,
                                       })
                                     }
-                                    className="text-xs text-gray-500 hover:text-brand-600"
+                                    className="text-xs text-gray-500 dark:text-slate-300 hover:text-brand-600 dark:hover:text-blue-400"
                                   >
                                     ویرایش
                                   </button>
                                   <button
                                     onClick={() => handleDeleteVessel(v)}
-                                    className="text-xs text-red-500 hover:text-red-700"
+                                    className="text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                                   >
                                     حذف
                                   </button>
                                   {!isExcluded && (
                                     <button
                                       onClick={() => setCertificateVessel(v)}
-                                      className="text-xs text-purple-700 hover:text-purple-900 font-medium"
+                                      className="text-xs text-purple-700 dark:text-purple-300 hover:text-purple-900 dark:hover:text-purple-200 font-medium"
                                     >
                                       تولید گواهی
                                     </button>
@@ -480,14 +480,14 @@ export default function CompanyAccordion() {
                             {isExcluded &&
                               isReasonOpen &&
                               v.exclusionReason && (
-                                <div className="mt-2 mr-1 text-xs text-gray-600 bg-purple-50/60 border border-purple-100 rounded-lg px-3 py-2">
+                                <div className="mt-2 mr-1 text-xs text-gray-600 dark:text-slate-300 bg-purple-50/60 dark:bg-purple-950/50 border border-purple-100 dark:border-purple-800 rounded-lg px-3 py-2">
                                   <span className="font-medium">
                                     دلیل معافیت:{" "}
                                   </span>
                                   {v.exclusionReason}
                                   {v.excludedAt && (
                                     <span
-                                      className="block text-gray-400 mt-1"
+                                      className="block text-gray-400 dark:text-slate-400 mt-1"
                                       dir="ltr"
                                     >
                                       {toShamsiDateTime(v.excludedAt)}
@@ -503,7 +503,7 @@ export default function CompanyAccordion() {
                     {isAdmin && (
                       <button
                         onClick={() => setVesselModal({ companyId: c.id })}
-                        className="mt-2 text-sm text-brand-600 hover:text-brand-700 font-medium"
+                        className="mt-2 text-sm text-brand-600 dark:text-blue-400 hover:text-brand-700 dark:hover:text-blue-300 font-medium"
                       >
                         + افزودن مخزن
                       </button>
@@ -512,11 +512,11 @@ export default function CompanyAccordion() {
                     {/* عملیات نهایی شرکت — فقط admin و فقط وقتی تاریخ فرارسیده،
                         همه مخازن تست‌شده، و گواهی آپلود شده باشد فعال است */}
                     {isAdmin && (
-                      <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200">
+                      <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
                         <button
                           disabled={!c.canMarkDone || busyAction === c.id}
                           onClick={() => handleMarkDone(c)}
-                          className="text-sm bg-green-600 hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-lg px-4 py-2 font-medium"
+                          className="text-sm bg-green-600 hover:bg-green-700 disabled:bg-gray-200 dark:disabled:bg-slate-700 disabled:text-gray-400 dark:disabled:text-slate-400 text-white rounded-lg px-4 py-2 font-medium"
                           title={
                             !c.canMarkDone
                               ? "ابتدا باید تاریخ فرارسیده، همه مخازن تست‌شده، و گواهی آپلود شده باشد"
@@ -528,7 +528,7 @@ export default function CompanyAccordion() {
                         <button
                           disabled={!c.allVesselsTested || !dateReached}
                           onClick={() => setUploadTarget(c)}
-                          className="text-sm bg-brand-600 hover:bg-brand-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-lg px-4 py-2 font-medium"
+                          className="text-sm bg-brand-600 hover:bg-brand-700 disabled:bg-gray-200 dark:disabled:bg-slate-700 disabled:text-gray-400 dark:disabled:text-slate-400 text-white rounded-lg px-4 py-2 font-medium"
                           title={
                             !c.allVesselsTested
                               ? "ابتدا باید همه مخازن تست‌شده باشند"
@@ -544,7 +544,7 @@ export default function CompanyAccordion() {
                             <a
                               href={c.testRecord.certificateUrl}
                               target="_blank"
-                              className="text-sm text-brand-600 underline self-center"
+                              className="text-sm text-brand-600 dark:text-blue-400 underline self-center"
                             >
                               دانلود گواهی فعلی
                             </a>
@@ -557,7 +557,7 @@ export default function CompanyAccordion() {
                         <a
                           href={c.testRecord.certificateUrl}
                           target="_blank"
-                          className="inline-block mt-4 pt-4 border-t border-gray-200 text-sm text-brand-600 underline"
+                          className="inline-block mt-4 pt-4 border-t border-gray-200 dark:border-slate-700 text-sm text-brand-600 dark:text-blue-400 underline"
                         >
                           دانلود گواهی فعلی
                         </a>
@@ -570,7 +570,7 @@ export default function CompanyAccordion() {
       </div>
 
       {/* صفحه‌بندی */}
-      <div className="flex items-center justify-between mt-4 text-sm text-gray-500">
+      <div className="flex items-center justify-between mt-4 text-sm text-gray-500 dark:text-slate-300">
         <span>
           مجموع {total} رکورد — صفحه {page} از {totalPages}
         </span>
@@ -578,14 +578,14 @@ export default function CompanyAccordion() {
           <button
             disabled={page <= 1}
             onClick={() => setPage((p) => p - 1)}
-            className="px-3 py-1.5 rounded-lg border border-gray-300 disabled:opacity-40"
+            className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-slate-600 disabled:opacity-40"
           >
             قبلی
           </button>
           <button
             disabled={page >= totalPages}
             onClick={() => setPage((p) => p + 1)}
-            className="px-3 py-1.5 rounded-lg border border-gray-300 disabled:opacity-40"
+            className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-slate-600 disabled:opacity-40"
           >
             بعدی
           </button>

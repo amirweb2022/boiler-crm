@@ -108,11 +108,11 @@ export default function MonthlyReports() {
   }
 
   if (myRole === "loading") {
-    return <p className="text-center text-gray-400 py-8">در حال بررسی دسترسی...</p>;
+    return <p className="text-center text-gray-400 dark:text-slate-400 py-8">در حال بررسی دسترسی...</p>;
   }
   if (myRole !== "admin") {
     return (
-      <p className="text-sm text-red-600 bg-red-50 rounded-lg px-4 py-3">
+      <p className="text-sm text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-950/50 rounded-lg px-4 py-3">
         شما دسترسی به بخش گزارش‌ها را ندارید — این بخش فقط برای نقش «admin» است.
       </p>
     );
@@ -121,9 +121,9 @@ export default function MonthlyReports() {
   return (
     <div className="space-y-8">
       {/* دانلود گزارش ماه اخیر */}
-      <section className="bg-white rounded-xl border border-gray-200 p-6">
+      <section className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
         <h2 className="font-bold mb-1">گزارش ماهانه</h2>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-gray-500 dark:text-slate-300 mb-4">
           گزارش هر ماه از روز اول ماه بعد، برای دانلود آماده است.
         </p>
 
@@ -136,13 +136,13 @@ export default function MonthlyReports() {
             {downloading ? "در حال ساخت فایل..." : `دانلود گزارش ${lastMonth.label}`}
           </button>
         ) : (
-          <p className="text-sm text-gray-400">در حال بارگذاری...</p>
+          <p className="text-sm text-gray-400 dark:text-slate-400">در حال بارگذاری...</p>
         )}
 
         {/* دانلود ماه‌های دیگر */}
         {availableMonths.length > 0 && (
-          <div className="mt-5 pt-4 border-t border-gray-100 flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-gray-500">گزارش ماه دیگر:</span>
+          <div className="mt-5 pt-4 border-t border-gray-100 dark:border-slate-700 flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-gray-500 dark:text-slate-300">گزارش ماه دیگر:</span>
             <select
               className="input w-auto"
               value={selectedMonth}
@@ -161,7 +161,7 @@ export default function MonthlyReports() {
                 const [jYear, jMonth] = selectedMonth.split("-").map(Number);
                 handleDownload(jYear, jMonth);
               }}
-              className="text-sm bg-gray-100 hover:bg-gray-200 disabled:opacity-50 rounded-lg px-4 py-2"
+              className="text-sm bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 disabled:opacity-50 rounded-lg px-4 py-2"
             >
               دانلود
             </button>
@@ -170,16 +170,16 @@ export default function MonthlyReports() {
       </section>
 
       {/* تنظیمات منطقه‌بندی */}
-      <section className="bg-white rounded-xl border border-gray-200 p-6">
+      <section className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
         <h2 className="font-bold mb-1">نگاشت استان به منطقه گزارش</h2>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-gray-500 dark:text-slate-300 mb-4">
           مشخص کن هر استان توی گزارش، زیر کدام شیت/منطقه قرار بگیرد (مثلاً چند استان با هم زیر «شمال»).
           استانی که این‌جا تعریف نشود، با نام خودش شیت جدا می‌شود.
         </p>
 
         <form onSubmit={handleAddRegion} className="flex items-end gap-2 flex-wrap mb-5">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">استان</label>
+            <label className="block text-xs text-gray-500 dark:text-slate-300 mb-1">استان</label>
             <input
               className="input w-auto"
               placeholder="مثال: گیلان"
@@ -188,7 +188,7 @@ export default function MonthlyReports() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">منطقه/شیت گزارش</label>
+            <label className="block text-xs text-gray-500 dark:text-slate-300 mb-1">منطقه/شیت گزارش</label>
             <input
               className="input w-auto"
               placeholder="مثال: شمال"
@@ -205,18 +205,18 @@ export default function MonthlyReports() {
           </button>
         </form>
 
-        <div className="divide-y divide-gray-100 border border-gray-100 rounded-lg">
+        <div className="divide-y divide-gray-100 dark:divide-slate-700 border border-gray-100 dark:border-slate-700 rounded-lg">
           {regionItems.length === 0 && (
-            <p className="text-sm text-gray-400 text-center py-4">هنوز نگاشتی تعریف نشده</p>
+            <p className="text-sm text-gray-400 dark:text-slate-400 text-center py-4">هنوز نگاشتی تعریف نشده</p>
           )}
           {regionItems.map((item) => (
             <div key={item.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
               <span>
                 <span className="font-medium">{item.province}</span>
-                <span className="text-gray-400"> ← </span>
+                <span className="text-gray-400 dark:text-slate-400"> ← </span>
                 <span>{item.regionName}</span>
               </span>
-              <button onClick={() => handleDeleteRegion(item.id)} className="text-xs text-red-500 hover:text-red-700">
+              <button onClick={() => handleDeleteRegion(item.id)} className="text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300">
                 حذف
               </button>
             </div>

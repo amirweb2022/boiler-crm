@@ -4,11 +4,36 @@
 
 @layer components {
   .input {
-    @apply w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
-      focus:outline-none focus:ring-2 focus:ring-brand-500;
+    @apply w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900
+      placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500
+      dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-400;
   }
 }
 
 html {
   direction: rtl;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+.dark .crm-date-picker.rmdp-wrapper,
+.dark .crm-date-picker .rmdp-month-picker,
+.dark .crm-date-picker .rmdp-year-picker,
+.dark .rmdp-container .crm-date-picker.ep-arrow::after {
+  background-color: #1e293b;
+  color: #e2e8f0;
+}
+
+.dark .crm-date-picker .rmdp-header-values,
+.dark .crm-date-picker .rmdp-week-day,
+.dark .crm-date-picker .rmdp-day:not(.rmdp-deactive),
+.dark .crm-date-picker .rmdp-panel-header {
+  color: #e2e8f0;
+}
+
+.dark .crm-date-picker .rmdp-day.rmdp-disabled,
+.dark .crm-date-picker .rmdp-day.rmdp-deactive {
+  color: #94a3b8;
 }

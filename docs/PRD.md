@@ -45,6 +45,9 @@ The admin-only audit screen filters by actor phone, action, and entity type; sho
 
 ## Architecture and operational contract
 
+**Appearance.** The Persian, right-to-left web UI offers Light, Dark, and System appearance on login and in each authenticated page header. System is the default and follows the device appearance, including changes while the app is open. A choice is saved in this browser across visits and login/logout, including for different accounts using the same browser. Dark appearance covers forms, dialogs, status indicators, and the Jalali date picker; generated certificates and Excel downloads retain their existing formatting. Browser-native confirmation, prompt, and alert dialogs follow the browser or operating system.
+
+
 Next.js 14 App Router serves React client components and route handlers. Route handlers authenticate, validate inputs (typically via Zod), call repository functions or feature services, and return JSON or a downloadable file. `lib/db/` uses a server-only Supabase service-role client; SQL enables RLS without public access policies. `supabase/schema.sql` describes a fresh installation and migrations `002`–`004` extend existing installations. Certificate uploads require a manually created `certificates` Storage bucket. `lib/reports/monthly-report.ts` uses ExcelJS; PDF generation uses Puppeteer and the committed image templates. The certificate renderer currently looks for a locally installed Google Chrome on Windows paths.
 
 Primary interfaces: `/login`, `/dashboard`, `/dashboard/reports`, `/dashboard/history`; API groups `/api/auth`, `/api/companies`, `/api/vessels`, `/api/test-records`, `/api/certificates`, `/api/sms`, `/api/reports`, `/api/region-map`, and `/api/audit-logs`. `.env.example` lists Supabase, session, SMS, cron, report, and app URL settings. Never include values from `.env.local` in documentation.
