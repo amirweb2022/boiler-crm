@@ -562,6 +562,22 @@ export default function CompanyAccordion() {
                           دانلود گواهی فعلی
                         </a>
                       )}
+                    {isAdmin && c.certificateHistory.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700 text-sm">
+                        <span className="font-medium">گواهی‌های چرخه‌های گذشته:</span>
+                        <div className="flex flex-wrap gap-3 mt-2">
+                          {c.certificateHistory.filter((certificate) => certificate.certificateUrl).map((certificate) => (
+                            <a key={certificate.cycleCount}
+                              href={certificate.certificateUrl ?? undefined}
+                              target="_blank" rel="noopener noreferrer"
+                              className="text-brand-600 dark:text-blue-400 underline">
+                              چرخه {certificate.cycleCount}
+                              {certificate.testDate ? ` (${toShamsiDisplay(certificate.testDate)})` : ""}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

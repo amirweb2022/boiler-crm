@@ -55,6 +55,7 @@ create table if not exists test_records (
   certificate_uploaded    boolean not null default false,
   certificate_url         text,
   certificate_path        text,
+  certificate_cycle_count integer,
   proof_of_upload_pending boolean not null default false,
   done_at                 timestamptz,
   cycle_count             integer not null default 0,
@@ -63,6 +64,15 @@ create table if not exists test_records (
 );
 
 create index if not exists idx_test_records_test_date on test_records(test_date);
+
+create table if not exists certificate_history (
+  test_record_id uuid not null references test_records(id) on delete cascade,
+  cycle_count integer not null,
+  test_date date,
+  certificate_url text,
+  certificate_path text,
+  primary key (test_record_id, cycle_count)
+);
 create index if not exists idx_test_records_status    on test_records(status);
 
 -- ---------------------------------------------------------------------
@@ -153,6 +163,28 @@ create table if not exists notifications (
 
 create index if not exists idx_notifications_company on notifications(company_id);
 
+create table if not exists reminder_claims (
+  test_record_id uuid not null references test_records(id) on delete cascade,
+  test_date date not null,
+  status text not null default 'sending',
+  claimed_at timestamptz not null default now(),
+  primary key (test_record_id, test_date)
+);
+
+create or replace function claim_reminder(record_id uuid, due_date date)
+returns boolean language plpgsql as $$
+declare claimed_count integer;
+begin
+  insert into reminder_claims (test_record_id, test_date)
+  values (record_id, due_date)
+  on conflict (test_record_id, test_date) do update
+    set status = 'sending', claimed_at = now()
+    where reminder_claims.status = 'failed';
+  get diagnostics claimed_count = row_count;
+  return claimed_count > 0;
+end;
+$$;
+
 -- ---------------------------------------------------------------------
 -- AUDIT_LOGS — ردیابی کامل عملیات حساس
 -- ---------------------------------------------------------------------
@@ -226,3 +258,5 @@ alter table login_attempts enable row level security;
 alter table test_history        enable row level security;
 alter table province_region_map enable row level security;
 alter table generated_certificates enable row level security;
+alter table certificate_history enable row level security;
+alter table reminder_claims enable row level security;

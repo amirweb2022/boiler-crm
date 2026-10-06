@@ -72,6 +72,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         certificate_uploaded: true,
         certificate_url: publicUrl.publicUrl,
         certificate_path: path,
+        certificate_cycle_count: (testRecord.cycle_count ?? 0) + 1,
         proof_of_upload_pending: false,
       })
       .eq("id", testRecord.id)
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const message = `گواهی آزمون دیگ بخار شرکت ${company.name} صادر شد.\nلینک دانلود: ${publicUrl.publicUrl}`;
     const smsResult = await sms.send({ phone: company.phone, message });
 
-    await db.from("notifications").insert({
+    const { error: notificationError } = await db.from("notifications").insert({
       company_id: company.id,
       test_record_id: testRecord.id,
       phone: company.phone,
@@ -93,6 +94,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       provider_ref: smsResult.providerRef ?? null,
       sent_at: smsResult.success ? new Date().toISOString() : null,
     });
+    if (notificationError) {
+      console.error("Certificate SMS notification insert failed", {
+        code: notificationError.code,
+      });
+    }
 
     await logAudit({
       adminId: admin.id,

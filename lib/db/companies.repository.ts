@@ -84,7 +84,7 @@ export async function listCompaniesWithDetails(
 
   let query = db
     .from("companies")
-    .select("*, test_records(*), vessels(*)", { count: "exact" })
+    .select("*, test_records(*, certificate_history(*)), vessels(*)", { count: "exact" })
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -125,11 +125,18 @@ export async function listCompaniesWithDetails(
       testRecord?.status === "pending" &&
       dateReached &&
       allVesselsTested &&
-      Boolean(testRecord?.certificateUploaded);
+      Boolean(testRecord?.certificateUploaded) &&
+      (trRow?.certificate_cycle_count === (trRow?.cycle_count ?? 0) + 1 ||
+        (trRow?.certificate_cycle_count == null && trRow?.cycle_count === 0));
 
     return {
       ...mapCompanyRow(row),
       testRecord,
+      certificateHistory: (trRow?.certificate_history ?? []).map((entry: any) => ({
+        cycleCount: entry.cycle_count,
+        testDate: entry.test_date,
+        certificateUrl: entry.certificate_url,
+      })),
       vessels,
       proximity,
       allVesselsTested,
@@ -231,10 +238,7 @@ export async function deleteCompany(id: string): Promise<void> {
  * - تاریخ آزمون یک سال شمسی جلو می‌رود (روی همان رکورد، نه رکورد جدید)
  * - وضعیت به‌جای done ماندن، بلافاصله برای چرخه جدید pending می‌شود
  *   (done_at و cycle_count برای تاریخچه/آمار نگه داشته می‌شود)
- * - گواهی فعلی نگه داشته می‌شود؛ عمداً اینجا پاک نمی‌شود — طبق نیازمندی،
- *   گواهی فقط وقتی چرخه جدید به وضعیت «نزدیک سررسید» برسد باید خودکار
- *   حذف شود (این کار توسط clearStaleCertificates انجام می‌شود که از
- *   cron روزانه فراخوانی می‌شود، نه اینجا).
+ * - گواهی چرخه تکمیل‌شده بایگانی و از رکورد چرخه تازه جدا می‌شود.
  * - تیک تست تمام مخازن ریست می‌شود (باید برای چرخه جدید دوباره تست شوند)
  */
 export async function markTestDoneAndStartNextCycle(
@@ -259,7 +263,9 @@ export async function markTestDoneAndStartNextCycle(
       "تاریخ تست هنوز فرانرسیده است؛ امکان ثبت انجام وجود ندارد",
     );
   }
-  if (!current.certificate_uploaded) {
+  if (!current.certificate_uploaded ||
+      (current.certificate_cycle_count !== (current.cycle_count ?? 0) + 1 &&
+       !(current.certificate_cycle_count == null && current.cycle_count === 0))) {
     throw new ValidationError(
       "قبل از ثبت انجام، ابتدا باید گواهی آزمون آپلود شود",
     );
@@ -291,6 +297,15 @@ export async function markTestDoneAndStartNextCycle(
 
   const nextDate = nextYearShamsi(current.test_date);
   const completingCycleCount = (current.cycle_count ?? 0) + 1;
+
+  const { error: archiveError } = await db.from("certificate_history").upsert({
+    test_record_id: current.id,
+    cycle_count: completingCycleCount,
+    test_date: current.test_date,
+    certificate_url: current.certificate_url,
+    certificate_path: current.certificate_path,
+  }, { onConflict: "test_record_id,cycle_count" });
+  if (archiveError) throw archiveError;
 
   // ثبت دائمی در تاریخچه — فقط مخازنی که واقعاً «تست‌شده» بودند (نه معاف‌شده‌ها،
   // چون آن‌ها عملاً بازرسی نشدند و نباید در گزارش رسمی «تأیید» ثبت شوند).
@@ -326,8 +341,10 @@ export async function markTestDoneAndStartNextCycle(
     .update({
       test_date: nextDate,
       status: "pending",
-      // توجه: certificate_uploaded / certificate_url / certificate_path
-      // عمداً دست‌نخورده می‌مانند — پاک‌سازی‌شان به clearStaleCertificates سپرده شده.
+      certificate_uploaded: false,
+      certificate_url: null,
+      certificate_path: null,
+      certificate_cycle_count: null,
       proof_of_upload_pending: false,
       done_at: new Date().toISOString(),
       cycle_count: completingCycleCount,
@@ -354,14 +371,7 @@ export async function markTestDoneAndStartNextCycle(
   return { testRecord: mapTestRecordRow(updated) };
 }
 
-/**
- * پاک‌سازی خودکار گواهی‌های «بیات» — طبق نیازمندی: گواهیِ چرخه‌ی قبل
- * باید تا وقتی چرخه‌ی فعلی به وضعیت «نزدیک سررسید» می‌رسد باقی بماند؛
- * از آن لحظه به بعد باید خودکار حذف شود (هم فایل واقعی از Storage، هم
- * فیلدهای دیتابیس) تا کاربر مجبور به آپلود گواهی تازه برای چرخه جدید شود.
- * این تابع idempotent است: چون بعد از حذف certificate_uploaded=false
- * می‌شود، رکورد دیگر در دفعات بعدی cron مطابقت پیدا نمی‌کند.
- */
+/** جدا کردن گواهی‌های قدیمیِ دارای مالکیت چرخه مشخص؛ فایل‌ها حذف نمی‌شوند. */
 export async function clearStaleCertificates(nearDueDays: number): Promise<{
   cleared: Array<{ testRecordId: string; certificatePath: string | null }>;
 }> {
@@ -369,7 +379,7 @@ export async function clearStaleCertificates(nearDueDays: number): Promise<{
 
   const { data: candidates, error } = await db
     .from("test_records")
-    .select("id, test_date, certificate_path")
+    .select("id, test_date, certificate_path, certificate_url, certificate_cycle_count, cycle_count, done_at")
     .eq("status", "pending")
     .eq("certificate_uploaded", true);
   if (error) throw error;
@@ -380,16 +390,17 @@ export async function clearStaleCertificates(nearDueDays: number): Promise<{
   }> = [];
 
   for (const record of candidates ?? []) {
-    if (daysUntil(record.test_date) > nearDueDays) continue; // هنوز نزدیک سررسید نشده
+    if (daysUntil(record.test_date) > nearDueDays ||
+        record.certificate_cycle_count !== record.cycle_count || !record.done_at) continue;
 
-    if (record.certificate_path) {
-      const { error: removeError } = await db.storage
-        .from("certificates")
-        .remove([record.certificate_path]);
-      if (removeError) {
-        console.error("خطا در حذف فایل گواهی بیات:", removeError.message);
-      }
-    }
+    const { error: archiveError } = await db.from("certificate_history").upsert({
+      test_record_id: record.id,
+      cycle_count: record.cycle_count,
+      test_date: null,
+      certificate_url: record.certificate_url,
+      certificate_path: record.certificate_path,
+    }, { onConflict: "test_record_id,cycle_count" });
+    if (archiveError) throw archiveError;
 
     const { error: updateError } = await db
       .from("test_records")
@@ -397,8 +408,11 @@ export async function clearStaleCertificates(nearDueDays: number): Promise<{
         certificate_uploaded: false,
         certificate_url: null,
         certificate_path: null,
+        certificate_cycle_count: null,
       })
-      .eq("id", record.id);
+      .eq("id", record.id)
+      .eq("certificate_cycle_count", record.certificate_cycle_count)
+      .eq("certificate_path", record.certificate_path);
     if (updateError) throw updateError;
 
     cleared.push({

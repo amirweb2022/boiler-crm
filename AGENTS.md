@@ -28,3 +28,17 @@ This is a Persian, right-to-left CRM for periodic testing of steam boilers and p
 4. When changing cycle, certificate, SMS, or report behavior, check both API authorization and the user-visible state. Update the PRD if observed behavior changes. Document any externally scheduled cron configuration separately; the repository supplies its endpoint but no scheduler definition.
 
 The repository contains work in progress in the certificate feature. Do not infer that a README roadmap item is implemented; inspect its route and call path first.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five default triage labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Use the single-context layout. See `docs/agents/domain.md`.

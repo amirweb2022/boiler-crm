@@ -9,48 +9,71 @@ import type { SmsProvider, SendSmsInput, SendSmsResult } from "./types";
 // =====================================================================
 
 interface KavenegarRestResponse {
-  return: { status: number; message: string };
-  entries?:
-    | { messageid: number; status: number; statustext: string; [key: string]: unknown }
-    | Array<{ messageid: number; status: number; statustext: string; [key: string]: unknown }>;
+  return?: { status?: number; message?: string };
+  entries?: Array<{ messageid?: number; status?: number; statustext?: string }>;
 }
 
 export class KavenegarSmsProvider implements SmsProvider {
-  private apiKey: string;
-  private sender?: string;
-
-  constructor(apiKey = process.env.KAVENEGAR_API_KEY!, sender = process.env.KAVENEGAR_SENDER) {
-    if (!apiKey) throw new Error("KAVENEGAR_API_KEY تنظیم نشده است");
-    this.apiKey = apiKey;
-    this.sender = sender;
-  }
-
   async send({ phone, message }: SendSmsInput): Promise<SendSmsResult> {
-    const url = `https://api.kavenegar.com/v1/${this.apiKey}/sms/send.json`;
-    const params = new URLSearchParams({
-      receptor: phone,
-      message,
-      ...(this.sender ? { sender: this.sender } : {}),
-    });
-
+    if (!process.env.KAVENEGAR_API_KEY) {
+      return { success: false, error: "KAVENEGAR_API_KEY تنظیم نشده است" };
+    }
+    const params = new URLSearchParams({ receptor: phone, message });
+    if (process.env.KAVENEGAR_SENDER) params.set("sender", process.env.KAVENEGAR_SENDER);
+    const url = `https://api.kavenegar.com/v1/${process.env.KAVENEGAR_API_KEY}/sms/send.json?${params}`;
     try {
-      const res = await fetch(`${url}?${params.toString()}`, { method: "GET" });
-      const json: KavenegarRestResponse = await res.json();
+      const res = await fetch(`${url}`, {
+        method: "GET",
+        signal: AbortSignal.timeout(10000),
+      });
+      const json: KavenegarRestResponse | null = await res.json();
 
-      console.log("📦 پاسخ کامل کاوه‌نگار:", JSON.stringify(json, null, 2));
-
-      if (json.return?.status !== 200) {
-        console.error("❌ درخواست کاوه‌نگار رد شد:", json.return);
-        return { success: false, error: json.return?.message ?? `کد وضعیت: ${json.return?.status}` };
+      if (!res.ok || json?.return?.status !== 200) {
+        console.error("Kavenegar SMS request rejected", {
+          httpStatus: res.status,
+          apiStatus: json?.return?.status,
+        });
+        return {
+          success: false,
+          error: json?.return?.message ?? `خطای کاوه‌نگار (${res.status})`,
+        };
       }
 
-      const first = Array.isArray(json.entries) ? json.entries[0] : json.entries;
-      console.log(`ℹ️ وضعیت واقعی تحویل: status=${first?.status} (${first?.statustext})`);
+      const entries = json.entries;
+      if (
+        !Array.isArray(entries) ||
+        entries.length === 0 ||
+        entries.some(
+          (entry) =>
+            !entry ||
+            !Number.isSafeInteger(entry.messageid) ||
+            !entry.messageid ||
+            typeof entry.status !== "number",
+        )
+      ) {
+        console.error("Kavenegar SMS response missing valid entry", {
+          httpStatus: res.status,
+        });
+        return { success: false, error: "پاسخ نامعتبر از کاوه‌نگار" };
+      }
 
-      return { success: true, providerRef: String(first?.messageid ?? "") };
-    } catch (err: any) {
-      console.error("❌ خطا در برقراری ارتباط با کاوه‌نگار:", err);
-      return { success: false, error: err?.message ?? "خطا در برقراری ارتباط با کاوه‌نگار" };
+      const failedEntry = entries.find((entry) => entry.status !== 1);
+      if (failedEntry) {
+        console.error("Kavenegar SMS entry not queued", {
+          entryStatus: failedEntry.status,
+        });
+        return {
+          success: false,
+          error: failedEntry.statustext || "Kavenegar SMS entry not queued",
+        };
+      }
+
+      return { success: true, providerRef: String(entries[0].messageid) };
+    } catch (err: unknown) {
+      console.error("Kavenegar SMS request failed", {
+        reason: err instanceof Error ? err.name : "UnknownError",
+      });
+      return { success: false, error: "خطا در برقراری ارتباط با کاوه‌نگار" };
     }
   }
 }

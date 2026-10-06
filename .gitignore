@@ -155,3 +155,6 @@ cypress/downloads/
 *.pid
 *.seed
 *.tgz
+
+.vercel
+.env*

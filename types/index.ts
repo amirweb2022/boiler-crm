@@ -75,6 +75,11 @@ export type TestProximity =
 // رکورد ترکیبی که در داشبورد (آکاردئون) نمایش داده می‌شود
 export interface CompanyWithDetails extends Company {
   testRecord: TestRecord | null;
+  certificateHistory: Array<{
+    cycleCount: number;
+    testDate: string | null;
+    certificateUrl: string | null;
+  }>;
   vessels: Vessel[];
   proximity: TestProximity;
   allVesselsTested: boolean;
