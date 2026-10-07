@@ -45,11 +45,6 @@ export const updateCompanySchema = z.object({
   testDate: isoDateSchema.optional(),
 });
 
-export const upsertRegionMapSchema = z.object({
-  province: z.string().trim().min(1, "نام استان الزامی است").max(60),
-  regionName: z.string().trim().min(1, "نام منطقه الزامی است").max(60),
-});
-
 const vesselTypeSchema = z.enum(["tank", "boiler", "lift", "forklift", "grounding"]);
 const vesselDetailsSchema = z.union([
   z.object({ liftType: z.string().trim().min(1).max(150), capacityAndModel: z.string().trim().min(1).max(150) }).strict(),

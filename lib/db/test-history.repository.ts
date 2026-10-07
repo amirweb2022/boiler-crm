@@ -43,10 +43,12 @@ export async function listTestHistoryForShamsiMonth(jYear: number, jMonth: numbe
 
   const { data, error } = await db
     .from("test_history")
-    .select("*")
+    .select("id, company_id, company_name, company_catalog_code, company_province, company_city, company_phone, company_address, vessel_id, vessel_name, vessel_volume, vessel_type, vessel_details, test_date, result, cycle_count, created_at")
     .gte("test_date", startISO)
     .lte("test_date", endISO)
-    .order("company_name", { ascending: true });
+    .order("company_name", { ascending: true })
+    .order("test_date", { ascending: true })
+    .order("vessel_type", { ascending: true });
   if (error) throw error;
 
   return (data ?? []).map(mapHistoryRow);

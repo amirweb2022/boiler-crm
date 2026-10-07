@@ -25,6 +25,11 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+  experimental: {
+    outputFileTracingIncludes: {
+      "/api/reports/download": ["./data/گزارش تست مهر ماه1404.xlsx"],
+    },
+  },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },

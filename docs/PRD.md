@@ -8,7 +8,7 @@ The application helps a small inspection team track companies, their steam boile
 
 | Role | Implemented access |
 | --- | --- |
-| `admin` | Manage companies and vessels, record exclusions and completions, generate and upload certificates, download reports, configure report regions, and view audit logs. |
+| `admin` | Manage companies and vessels, record exclusions and completions, generate and upload certificates, download reports, and view audit logs. |
 | `tester` | View the company dashboard and mark or unmark vessels as tested once their due date has arrived. The dashboard also exposes links to current uploaded certificates. |
 
 Admins are provisioned by `scripts/create-admin.ts`, not by a sign-up page. Login accepts an Iranian mobile number and password; a signed HTTP-only session cookie lasts eight hours. `middleware.ts` checks the token for protected paths, while API routes reload the active admin and enforce roles. Failed logins are counted by phone in a rolling 15-minute window; five failures cause a temporary block. The history screen and API expose recorded actions to admins.
@@ -37,11 +37,11 @@ Admins are provisioned by `scripts/create-admin.ts`, not by a sign-up page. Logi
 
 ## Monthly reports and accountability
 
-`test_history` stores company and device snapshots, including device type and JSON details, at completion, so subsequent edits or deletions do not rewrite report row content. The admin-only reports screen offers the most recently completed Jalali month and months represented in history. The Excel workbook is built on demand from the requested month's history; an empty month produces a sheet explaining that no completed tests were found. A region mapping maintained by admins groups provinces into worksheets; an unmapped province gets its own sheet. Equivalent device type/details for the same company and test date are combined into a row with a quantity. The workbook uses the configured inspector name/national ID and currently labels each included result approved. Report downloads and region-map edits are audited.
+`test_history` stores company and device snapshots, including device type and JSON details, at completion, so subsequent edits or deletions do not rewrite report row content. The admin-only reports screen offers the most recently completed Jalali month and months represented in history. The Excel workbook is built on demand from the requested month's history using the supplied workbook layout, with separate `دیگ بخار و مخزن`, `بالابر`, `لیفتراک`, and `ارت` sheets. Titles use the selected Jalali month and year, and each sheet keeps its template-specific columns and formatting even when that month has no entries. Equivalent equipment in the first three sheets is combined into a row with a quantity; grounding systems remain separate rows and show their well count and ring unit. The workbook uses the configured inspector name/national ID and labels included results as approved. Province-region mapping data remains in the database but is no longer used by the report flow. Report downloads are audited.
 
 The admin-only audit screen filters by actor phone, action, and entity type; shows timestamp, actor, entity, optional IP, and metadata; and paginates results. Audit inserts are attempted after the main operation; the logging helper does not enforce successful storage of each event.
 
-**Acceptance scenarios.** A month with no completed tests still downloads a valid workbook. Two identical tested vessels in one company and date aggregate to quantity two; excluded vessels do not appear. Removing a region mapping moves that province's report data to a worksheet named after the province. A tester receives an authorization error from report and audit APIs.
+**Acceptance scenarios.** A month with no completed tests still downloads a valid workbook with all four formatted equipment sheets. Two identical tested devices in the same company and date aggregate to quantity two in the first three sheets; grounding-system rows retain separate well-count and ring fields. Excluded devices do not appear. A tester receives an authorization error from report and audit APIs.
 
 ## Architecture and operational contract
 
@@ -50,7 +50,7 @@ The admin-only audit screen filters by actor phone, action, and entity type; sho
 
 Next.js 14 App Router serves React client components and route handlers. Route handlers authenticate, validate inputs (typically via Zod), call repository functions or feature services, and return JSON or a downloadable file. `lib/db/` uses a server-only Supabase service-role client; SQL enables RLS without public access policies. `supabase/schema.sql` describes a fresh installation and migrations `002`–`004` extend existing installations. Certificate uploads require a manually created `certificates` Storage bucket. `lib/reports/monthly-report.ts` uses ExcelJS; PDF generation uses Puppeteer and the committed image templates. The certificate renderer currently looks for a locally installed Google Chrome on Windows paths.
 
-Primary interfaces: `/login`, `/dashboard`, `/dashboard/reports`, `/dashboard/history`; API groups `/api/auth`, `/api/companies`, `/api/vessels`, `/api/test-records`, `/api/certificates`, `/api/sms`, `/api/reports`, `/api/region-map`, and `/api/audit-logs`. `.env.example` lists Supabase, session, SMS, cron, report, and app URL settings. Never include values from `.env.local` in documentation.
+Primary interfaces: `/login`, `/dashboard`, `/dashboard/reports`, `/dashboard/history`; API groups `/api/auth`, `/api/companies`, `/api/vessels`, `/api/test-records`, `/api/certificates`, `/api/sms`, `/api/reports`, and `/api/audit-logs`. `.env.example` lists Supabase, session, SMS, cron, report, and app URL settings. Never include values from `.env.local` in documentation.
 
 ## Current limitations and evidence boundaries
 

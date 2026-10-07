@@ -1,187 +1,234 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import ExcelJS from "exceljs";
 import { listTestHistoryForShamsiMonth } from "../db/test-history.repository";
-import { getRegionMapDict } from "../db/region-map.repository";
 import { toShamsiDisplay, SHAMSI_MONTH_NAMES } from "../date/shamsi";
-import type { TestHistoryEntry } from "../../types";
+import type { TestHistoryEntry, VesselType } from "../../types";
 
-// =====================================================================
-// ساخت فایل اکسل گزارش ماهانه، دقیقاً مطابق قالب نمونه‌ای که کارفرما
-// ارائه داد: یک شیت به‌ازای هر «منطقه» (نگاشت‌شده از استان، از جدول
-// province_region_map)، هر شیت شامل عنوان + جدول با ستون‌های ثابت.
-// وقتی چند مخزن هم‌نام و هم‌حجم در یک شرکت باشند، در یک ردیف با
-// «تعداد» جمع‌شده نمایش داده می‌شوند (دقیقاً مطابق فایل نمونه).
-// =====================================================================
+const TEMPLATE_PATH = path.join(process.cwd(), "data", "گزارش تست مهر ماه1404.xlsx");
+const PRESSURE_SHEET = "دیگ بخار و مخزن";
+const LIFT_SHEET = "بالابر";
+const FORKLIFT_SHEET = "لیفتراک";
+const GROUNDING_SHEET = "ارت";
 
-const HEADER_VALUES = [
-  "ردیف",
-  "نام بررسی کننده",
-  "شناسه ملی بررسی کننده",
-  "نوع دیگ / مخزن",
-  "ظرفیت",
-  "استان",
-  "شهرستان",
-  "نام شرکت",
-  "نشانی کامل شرکت و تلفن ",
-  "تاریخ آزمایش",
-  "تعداد",
-  "",
-  "نتیجه",
-];
-const COLUMN_COUNT = HEADER_VALUES.length;
-
-interface AggregatedRow {
-  companyName: string;
-  province: string;
-  city: string;
-  addressAndPhone: string;
-  vesselName: string;
-  vesselVolume: string;
-  testDate: string;
+interface ReportRow {
+  entry: TestHistoryEntry;
+  deviceName: string;
+  capacity: string;
   count: number;
 }
 
-function reportDeviceFields(entry: TestHistoryEntry): { name: string; details: string } {
-  const values = entry.vesselDetails as Record<string, unknown>;
-  switch (entry.vesselType) {
-    case "lift": return { name: `بالابر — ${String(values.liftType ?? "")}`, details: String(values.capacityAndModel ?? "") };
-    case "forklift": return { name: `لیفتراک — ${String(values.forkliftType ?? "")}`, details: String(values.capacity ?? "") };
-    case "grounding": return { name: `ارت — ${String(values.groundingSystemType ?? "")}`, details: `${values.wellCount ?? ""} حلقه` };
-    case "boiler": return { name: entry.vesselName ?? "دیگ بخار", details: entry.vesselVolume ?? "" };
-    case "tank": return { name: entry.vesselName ?? "مخزن", details: entry.vesselVolume ?? "" };
-    default: return { name: entry.vesselName ?? "", details: entry.vesselVolume ?? "" };
+interface GroundingReportRow {
+  entry: TestHistoryEntry;
+  systemType: string;
+  wellCount: string | number;
+}
+
+function text(value: unknown): string {
+  return value == null ? "" : String(value);
+}
+
+function inspectorValues() {
+  return {
+    name: process.env.REPORT_INSPECTOR_NAME ?? "—",
+    nationalId: process.env.REPORT_INSPECTOR_NATIONAL_ID ?? "—",
+  };
+}
+
+function companyAddress(entry: TestHistoryEntry): string {
+  return [entry.companyAddress, entry.companyPhone].filter(Boolean).join("، ");
+}
+
+function reportSheetFor(type: VesselType | null): string {
+  switch (type) {
+    case "lift": return LIFT_SHEET;
+    case "forklift": return FORKLIFT_SHEET;
+    case "grounding": return GROUNDING_SHEET;
+    default: return PRESSURE_SHEET;
   }
 }
 
-function aggregate(entries: TestHistoryEntry[]): AggregatedRow[] {
-  const map = new Map<string, AggregatedRow>();
-  for (const e of entries) {
-    const display = reportDeviceFields(e);
-    const key = `${e.companyName}||${e.vesselType}||${display.name}||${display.details}||${e.testDate}`;
-    const existing = map.get(key);
+function deviceFields(entry: TestHistoryEntry): { name: string; capacity: string } {
+  const details = entry.vesselDetails as Record<string, unknown>;
+  switch (entry.vesselType) {
+    case "lift":
+      return { name: text(details.liftType), capacity: text(details.capacityAndModel) };
+    case "forklift":
+      return { name: text(details.forkliftType), capacity: text(details.capacity) };
+    case "grounding":
+      return { name: text(details.groundingSystemType), capacity: `${text(details.wellCount)} حلقه` };
+    case "boiler":
+    case "tank":
+    case null:
+      return {
+        name: entry.vesselName ?? (entry.vesselType === "boiler" ? "دیگ بخار" : "مخزن"),
+        capacity: entry.vesselVolume ?? "",
+      };
+  }
+}
+
+function aggregationKey(entry: TestHistoryEntry, name: string, capacity: string): string {
+  return [entry.companyId ?? entry.companyName, entry.vesselType, name, capacity, entry.testDate].join("\u0000");
+}
+
+function aggregate(entries: TestHistoryEntry[]): ReportRow[] {
+  const rows = new Map<string, ReportRow>();
+  for (const entry of entries) {
+    const { name, capacity } = deviceFields(entry);
+    const key = aggregationKey(entry, name, capacity);
+    const existing = rows.get(key);
     if (existing) {
       existing.count += 1;
-      continue;
+    } else {
+      rows.set(key, { entry, deviceName: name, capacity, count: 1 });
     }
-    map.set(key, {
-      companyName: e.companyName,
-      province: e.companyProvince,
-      city: e.companyCity ?? "",
-      addressAndPhone: [e.companyAddress, e.companyPhone].filter(Boolean).join("، "),
-      vesselName: display.name,
-      vesselVolume: display.details,
-      testDate: e.testDate,
-      count: 1,
-    });
   }
-  return Array.from(map.values()).sort((a, b) => a.companyName.localeCompare(b.companyName, "fa"));
+  return [...rows.values()];
 }
 
-function styleHeaderRow(row: ExcelJS.Row) {
-  row.eachCell({ includeEmpty: true }, (cell) => {
-    cell.font = { bold: true };
-    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE5E7EB" } };
-    cell.border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
-    };
-  });
+function reportRows(entries: TestHistoryEntry[]): Map<string, ReportRow[]> {
+  const grouped = new Map<string, TestHistoryEntry[]>();
+  for (const entry of entries) {
+    const sheet = reportSheetFor(entry.vesselType);
+    const sheetEntries = grouped.get(sheet) ?? [];
+    sheetEntries.push(entry);
+    grouped.set(sheet, sheetEntries);
+  }
+
+  const result = new Map<string, ReportRow[]>();
+  for (const sheet of [PRESSURE_SHEET, LIFT_SHEET, FORKLIFT_SHEET]) {
+    result.set(sheet, aggregate(grouped.get(sheet) ?? []));
+  }
+  return result;
 }
 
-function styleDataRow(row: ExcelJS.Row) {
-  row.eachCell({ includeEmpty: true }, (cell) => {
-    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-    cell.border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
-    };
+function groundingRows(entries: TestHistoryEntry[]): GroundingReportRow[] {
+  return entries
+    .filter((entry) => entry.vesselType === "grounding")
+    .map((entry) => {
+      const details = entry.vesselDetails as Record<string, unknown>;
+      return {
+        entry,
+        systemType: text(details.groundingSystemType),
+        wellCount: typeof details.wellCount === "number" ? details.wellCount : text(details.wellCount),
+      };
+    });
+}
+
+function rowStyles(row: ExcelJS.Row, columnCount: number): ExcelJS.Style[] {
+  return Array.from({ length: columnCount }, (_, index) =>
+    structuredClone(row.getCell(index + 1).style),
+  );
+}
+
+function writeRows<T>(
+  worksheet: ExcelJS.Worksheet,
+  rows: T[],
+  makeValues: (row: T, index: number) => unknown[],
+): void {
+  const columnCount = worksheet.columnCount;
+  const originalLastRow = worksheet.rowCount;
+  const styleTemplate = rowStyles(worksheet.getRow(3), columnCount);
+
+  for (let rowNumber = 3; rowNumber <= originalLastRow; rowNumber += 1) {
+    const row = worksheet.getRow(rowNumber);
+    for (let column = 1; column <= columnCount; column += 1) {
+      row.getCell(column).value = null;
+    }
+  }
+
+  rows.forEach((reportRow, index) => {
+    const rowNumber = index + 3;
+    const row = worksheet.getRow(rowNumber);
+    styleTemplate.forEach((style, styleIndex) => {
+      row.getCell(styleIndex + 1).style = structuredClone(style);
+    });
+    if (rowNumber > originalLastRow) {
+      row.height = worksheet.getRow(3).height;
+    }
+    makeValues(reportRow, index).forEach((value, columnIndex) => {
+      row.getCell(columnIndex + 1).value = value as ExcelJS.CellValue;
+    });
   });
-  row.getCell(8).alignment = { horizontal: "right", vertical: "middle" };
-  row.getCell(9).alignment = { horizontal: "right", vertical: "middle", wrapText: true };
+
+  // ExcelJS spliceRows does not truncate its backing row array when removing trailing rows.
+  // Trim the loaded template rows directly so the exported sheet has only its headers and data.
+  (worksheet as unknown as { _rows: unknown[] })._rows.length = rows.length + 2;
+}
+
+function commonValues(rowNumber: number): unknown[] {
+  const inspector = inspectorValues();
+  return [
+    rowNumber,
+    inspector.name,
+    inspector.nationalId,
+  ];
+}
+
+function standardValues(row: ReportRow, index: number): unknown[] {
+  const entry = row.entry;
+  return [
+    ...commonValues(index + 1),
+    row.deviceName,
+    row.capacity,
+    entry.companyProvince,
+    entry.companyCity ?? "",
+    entry.companyName,
+    companyAddress(entry),
+    toShamsiDisplay(entry.testDate),
+    row.count,
+    "دستگاه",
+    entry.result === "approved" ? "تأیید" : entry.result,
+  ];
+}
+
+function groundingValues(row: GroundingReportRow, index: number): unknown[] {
+  const entry = row.entry;
+  return [
+    ...commonValues(index + 1),
+    row.systemType,
+    row.wellCount,
+    "حلقه",
+    entry.companyProvince,
+    entry.companyCity ?? "",
+    entry.companyName,
+    companyAddress(entry),
+    toShamsiDisplay(entry.testDate),
+    entry.result === "approved" ? "تأیید" : entry.result,
+  ];
 }
 
 export async function buildMonthlyReportWorkbook(jYear: number, jMonth: number): Promise<ExcelJS.Workbook> {
-  const entries = await listTestHistoryForShamsiMonth(jYear, jMonth);
-  const regionMap = await getRegionMapDict();
-
-  const inspectorName = process.env.REPORT_INSPECTOR_NAME ?? "—";
-  const inspectorNationalId = process.env.REPORT_INSPECTOR_NATIONAL_ID ?? "—";
-  const monthLabel = `${SHAMSI_MONTH_NAMES[jMonth - 1]} ${jYear}`;
-
-  const byRegion = new Map<string, TestHistoryEntry[]>();
-  for (const e of entries) {
-    const region = regionMap[e.companyProvince] ?? e.companyProvince;
-    if (!byRegion.has(region)) byRegion.set(region, []);
-    byRegion.get(region)!.push(e);
-  }
-
+  const [entries, template] = await Promise.all([
+    listTestHistoryForShamsiMonth(jYear, jMonth),
+    readFile(TEMPLATE_PATH),
+  ]);
   const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(template);
+
+  const period = `${SHAMSI_MONTH_NAMES[jMonth - 1]} ماه ${jYear}`;
+  const pressureTitle = `گزارش خدمات مشاوران در زمینه ارزیابی ایمنی ظروف تحت فشار ${period}`;
+  const titles: Record<string, string> = {
+    [PRESSURE_SHEET]: pressureTitle,
+    [LIFT_SHEET]: pressureTitle,
+    [FORKLIFT_SHEET]: pressureTitle,
+    [GROUNDING_SHEET]: `گزارش خدمات مشاوران در زمینه تخصصی ارزیابی ایمنی برق ${period}`,
+  };
+
   workbook.creator = "سامانه مدیریت آزمون دیگ بخار";
   workbook.created = new Date();
-
-  if (byRegion.size === 0) {
-    const ws = workbook.addWorksheet("گزارش", { views: [{ rightToLeft: true }] });
-    ws.getCell("A1").value = `هیچ آزمون تکمیل‌شده‌ای در ${monthLabel} ثبت نشده است`;
-    ws.getCell("A1").alignment = { horizontal: "center" };
-    return workbook;
+  for (const worksheet of workbook.worksheets) {
+    worksheet.getCell("A1").value = titles[worksheet.name];
   }
 
-  for (const [region, regionEntries] of byRegion) {
-    // نام شیت اکسل حداکثر ۳۱ کاراکتر و بدون برخی کاراکترهای خاص مجاز است
-    const sheetName = region.replace(/[\\/*?:[\]]/g, "").slice(0, 31) || "منطقه";
-    const ws = workbook.addWorksheet(sheetName, { views: [{ rightToLeft: true }] });
-
-    ws.columns = [
-      { width: 6 },
-      { width: 18 },
-      { width: 16 },
-      { width: 28 },
-      { width: 14 },
-      { width: 12 },
-      { width: 12 },
-      { width: 22 },
-      { width: 38 },
-      { width: 14 },
-      { width: 8 },
-      { width: 8 },
-      { width: 10 },
-    ];
-
-    ws.mergeCells(1, 1, 1, COLUMN_COUNT);
-    const titleCell = ws.getCell(1, 1);
-    titleCell.value = `گزارش خدمات مشاوران در زمینه ارزیابی ایمنی ظروف تحت فشار ${monthLabel} ${region}`;
-    titleCell.font = { bold: true, size: 13 };
-    titleCell.alignment = { horizontal: "center", vertical: "middle" };
-    ws.getRow(1).height = 26;
-
-    const headerRow = ws.addRow(HEADER_VALUES);
-    styleHeaderRow(headerRow);
-    ws.mergeCells(headerRow.number, 11, headerRow.number, 12);
-
-    const aggregated = aggregate(regionEntries);
-    aggregated.forEach((row, idx) => {
-      const dataRow = ws.addRow([
-        idx + 1,
-        inspectorName,
-        inspectorNationalId,
-        row.vesselName,
-        row.vesselVolume,
-        row.province,
-        row.city,
-        row.companyName,
-        row.addressAndPhone,
-        toShamsiDisplay(row.testDate),
-        row.count,
-        "دستگاه",
-        "تأیید",
-      ]);
-      styleDataRow(dataRow);
-    });
+  const regularRows = reportRows(entries);
+  for (const sheetName of [PRESSURE_SHEET, LIFT_SHEET, FORKLIFT_SHEET]) {
+    const worksheet = workbook.getWorksheet(sheetName)!;
+    writeRows(worksheet, regularRows.get(sheetName) ?? [], standardValues);
   }
+
+  const groundingWorksheet = workbook.getWorksheet(GROUNDING_SHEET)!;
+  writeRows(groundingWorksheet, groundingRows(entries), groundingValues);
 
   return workbook;
 }

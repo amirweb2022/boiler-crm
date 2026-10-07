@@ -8,23 +8,12 @@ interface MonthInfo {
   label: string;
 }
 
-interface RegionMapItem {
-  id: string;
-  province: string;
-  regionName: string;
-}
-
 export default function MonthlyReports() {
   const [myRole, setMyRole] = useState<"admin" | "tester" | null | "loading">("loading");
   const [lastMonth, setLastMonth] = useState<MonthInfo | null>(null);
   const [availableMonths, setAvailableMonths] = useState<MonthInfo[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [downloading, setDownloading] = useState(false);
-
-  const [regionItems, setRegionItems] = useState<RegionMapItem[]>([]);
-  const [newProvince, setNewProvince] = useState("");
-  const [newRegion, setNewRegion] = useState("");
-  const [savingRegion, setSavingRegion] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -41,19 +30,11 @@ export default function MonthlyReports() {
     setAvailableMonths(json.availableMonths ?? []);
   }, []);
 
-  const fetchRegionMap = useCallback(async () => {
-    const res = await fetch("/api/region-map");
-    if (!res.ok) return;
-    const json = await res.json();
-    setRegionItems(json.items ?? []);
-  }, []);
-
   useEffect(() => {
     if (myRole === "admin") {
       fetchStatus();
-      fetchRegionMap();
     }
-  }, [myRole, fetchStatus, fetchRegionMap]);
+  }, [myRole, fetchStatus]);
 
   async function handleDownload(jYear: number, jMonth: number) {
     setDownloading(true);
@@ -68,7 +49,6 @@ export default function MonthlyReports() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `گزارش.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -76,35 +56,6 @@ export default function MonthlyReports() {
     } finally {
       setDownloading(false);
     }
-  }
-
-  async function handleAddRegion(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newProvince.trim() || !newRegion.trim()) return;
-    setSavingRegion(true);
-    try {
-      const res = await fetch("/api/region-map", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ province: newProvince.trim(), regionName: newRegion.trim() }),
-      });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        alert(json.error ?? "خطا در ثبت نگاشت");
-        return;
-      }
-      setNewProvince("");
-      setNewRegion("");
-      fetchRegionMap();
-    } finally {
-      setSavingRegion(false);
-    }
-  }
-
-  async function handleDeleteRegion(id: string) {
-    if (!confirm("این نگاشت حذف شود؟")) return;
-    await fetch(`/api/region-map/${id}`, { method: "DELETE" });
-    fetchRegionMap();
   }
 
   if (myRole === "loading") {
@@ -167,61 +118,6 @@ export default function MonthlyReports() {
             </button>
           </div>
         )}
-      </section>
-
-      {/* تنظیمات منطقه‌بندی */}
-      <section className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
-        <h2 className="font-bold mb-1">نگاشت استان به منطقه گزارش</h2>
-        <p className="text-sm text-gray-500 dark:text-slate-300 mb-4">
-          مشخص کن هر استان توی گزارش، زیر کدام شیت/منطقه قرار بگیرد (مثلاً چند استان با هم زیر «شمال»).
-          استانی که این‌جا تعریف نشود، با نام خودش شیت جدا می‌شود.
-        </p>
-
-        <form onSubmit={handleAddRegion} className="flex items-end gap-2 flex-wrap mb-5">
-          <div>
-            <label className="block text-xs text-gray-500 dark:text-slate-300 mb-1">استان</label>
-            <input
-              className="input w-auto"
-              placeholder="مثال: گیلان"
-              value={newProvince}
-              onChange={(e) => setNewProvince(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 dark:text-slate-300 mb-1">منطقه/شیت گزارش</label>
-            <input
-              className="input w-auto"
-              placeholder="مثال: شمال"
-              value={newRegion}
-              onChange={(e) => setNewRegion(e.target.value)}
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={savingRegion}
-            className="bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-sm rounded-lg px-4 py-2"
-          >
-            افزودن/آپدیت
-          </button>
-        </form>
-
-        <div className="divide-y divide-gray-100 dark:divide-slate-700 border border-gray-100 dark:border-slate-700 rounded-lg">
-          {regionItems.length === 0 && (
-            <p className="text-sm text-gray-400 dark:text-slate-400 text-center py-4">هنوز نگاشتی تعریف نشده</p>
-          )}
-          {regionItems.map((item) => (
-            <div key={item.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-              <span>
-                <span className="font-medium">{item.province}</span>
-                <span className="text-gray-400 dark:text-slate-400"> ← </span>
-                <span>{item.regionName}</span>
-              </span>
-              <button onClick={() => handleDeleteRegion(item.id)} className="text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300">
-                حذف
-              </button>
-            </div>
-          ))}
-        </div>
       </section>
     </div>
   );

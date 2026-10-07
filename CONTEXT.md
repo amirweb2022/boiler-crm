@@ -23,3 +23,6 @@ The retained certificate of a completed inspection cycle, available to an admini
 
 **Reminder window**:
 The two Tehran calendar days before an inspection due date during which an administrator can manually send a reminder SMS. Sending is allowed only from 08:00 inclusive until 22:00 exclusive Asia/Tehran time. One provider-accepted reminder is allowed per test date; a failed attempt can be retried.
+
+**Monthly inspection report**:
+A workbook summarizing inspection devices tested in one Jalali month, with separate sheets for each equipment type.

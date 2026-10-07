@@ -105,7 +105,6 @@ export interface Notification {
   sentAt: string | null;
   createdAt: string;
 }
-
 // ---- API contracts ----
 
 export interface PaginatedResult<T> {
@@ -181,12 +180,4 @@ export interface TestHistoryEntry {
   result: "approved";
   cycleCount: number | null;
   createdAt: string;
-}
-
-export interface ProvinceRegionMapEntry {
-  id: string;
-  province: string;
-  regionName: string;
-  createdAt: string;
-  updatedAt: string;
 }
