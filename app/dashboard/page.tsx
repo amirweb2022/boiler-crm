@@ -1,5 +1,6 @@
 import CompanyAccordion from "../../components/CompanyAccordion";
 import ThemeMenu from "../../components/ThemeMenu";
+import ReminderMenu from "../../components/ReminderMenu";
 
 export default function DashboardPage() {
   return (
@@ -7,6 +8,7 @@ export default function DashboardPage() {
       <header className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 px-6 py-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-bold">سامانه مدیریت آزمون دیگ بخار</h1>
         <div className="flex flex-wrap items-center gap-4">
+          <ReminderMenu />
           <ThemeMenu />
           <a href="/dashboard/reports" className="text-sm text-gray-500 dark:text-slate-300 hover:text-brand-600 dark:hover:text-blue-400">
             گزارش‌های ماهانه

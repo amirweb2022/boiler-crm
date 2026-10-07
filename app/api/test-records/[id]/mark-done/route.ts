@@ -14,7 +14,7 @@ import { getClientIp } from "../../../../../lib/rate-limit";
 // ۲) تاریخ آزمون یک سال شمسی جلو می‌رود (روی همان رکورد)
 // ۳) گواهی فعلی نگه داشته می‌شود (حذف نمی‌شود) — فقط وقتی چرخه جدید به
 //    وضعیت «نزدیک سررسید» برسد، به‌صورت خودکار توسط cron پاک می‌شود
-//    (به app/api/sms/send-reminders/route.ts نگاه کنید)
+//    (به app/api/cron/clear-stale-certificates/route.ts نگاه کنید)
 // ۴) تیک تست همه مخازن ریست می‌شود تا برای چرخه جدید دوباره تست شوند
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {

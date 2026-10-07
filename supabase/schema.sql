@@ -163,6 +163,7 @@ create table if not exists notifications (
 
 create index if not exists idx_notifications_company on notifications(company_id);
 
+-- Atomic reservation for manual reminder SMS; failed attempts can be retried.
 create table if not exists reminder_claims (
   test_record_id uuid not null references test_records(id) on delete cascade,
   test_date date not null,

@@ -14,4 +14,4 @@ An uploaded certificate belonging to the active inspection cycle. A certificate 
 The retained certificate of a completed inspection cycle, available to an administrator after rollover. It is not a current certificate and remains available even when the next cycle approaches its due date.
 
 **Reminder window**:
-The eligible days before an inspection due date during which one reminder may be accepted by the SMS provider. A reminder is never initiated outside 08:00–20:00 Asia/Tehran or on/after the due date.
+The two Tehran calendar days before an inspection due date during which an administrator can manually send a reminder SMS. Sending is allowed only from 08:00 inclusive until 22:00 exclusive Asia/Tehran time. One provider-accepted reminder is allowed per test date; a failed attempt can be retried.
