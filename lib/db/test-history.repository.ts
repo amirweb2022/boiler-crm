@@ -18,6 +18,8 @@ function mapHistoryRow(row: any): TestHistoryEntry {
     vesselId: row.vessel_id,
     vesselName: row.vessel_name,
     vesselVolume: row.vessel_volume,
+    vesselType: row.vessel_type ?? null,
+    vesselDetails: row.vessel_details ?? {},
     testDate: row.test_date,
     result: row.result,
     cycleCount: row.cycle_count,

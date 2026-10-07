@@ -9,6 +9,7 @@ function mapVesselRow(row: any): Vessel {
     companyId: row.company_id,
     name: row.name,
     volume: row.volume,
+    details: row.details ?? {},
     tested: row.tested,
     status: row.status,
     exclusionReason: row.exclusion_reason,
@@ -33,9 +34,10 @@ export async function createVessel(input: CreateVesselInput): Promise<Vessel> {
     .from("vessels")
     .insert({
       company_id: input.companyId,
-      name: input.name,
-      volume: input.volume,
+      name: input.name ?? null,
+      volume: input.volume ?? null,
       type: input.type,
+      details: input.details ?? {},
     })
     .select()
     .single();
@@ -53,6 +55,11 @@ export async function updateVessel(
   if (input.name) patch.name = input.name;
   if (input.volume) patch.volume = input.volume;
   if (input.type) patch.type = input.type;
+  if (input.type && input.type !== "tank" && input.type !== "boiler") {
+    patch.name = null;
+    patch.volume = null;
+  }
+  if (input.details) patch.details = input.details;
 
   const { data, error } = await db
     .from("vessels")

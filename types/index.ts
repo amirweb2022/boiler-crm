@@ -9,7 +9,12 @@ export type NotificationStatus = "pending" | "sent" | "failed";
 // admin: دسترسی کامل (ساخت/ویرایش/حذف شرکت و مخزن، ثبت گواهی، ثبت انجام)
 // tester: فقط اجازه تیک‌زدن/برداشتن تیک وضعیت مخازن را دارد
 export type AdminRole = "admin" | "tester";
-export type VesselType = "tank" | "boiler";
+export type VesselType = "tank" | "boiler" | "lift" | "forklift" | "grounding";
+export type VesselDetails =
+  | Record<string, never>
+  | { liftType: string; capacityAndModel: string }
+  | { forkliftType: string; capacity: string }
+  | { groundingSystemType: string; wellCount: number };
 export interface Admin {
   id: string;
   phone: string;
@@ -55,8 +60,9 @@ export type VesselStatus = "active" | "excluded";
 export interface Vessel {
   id: string;
   companyId: string;
-  name: string;
-  volume: string;
+  name: string | null;
+  volume: string | null;
+  details: VesselDetails;
   tested: boolean;
   status: VesselStatus;
   exclusionReason: string | null;
@@ -142,15 +148,17 @@ export interface UpdateCompanyInput {
 
 export interface CreateVesselInput {
   companyId: string;
-  name: string;
-  volume: string;
   type: VesselType;
+  name?: string;
+  volume?: string;
+  details?: VesselDetails;
 }
 
 export interface UpdateVesselInput {
+  type?: VesselType;
   name?: string;
   volume?: string;
-  type?: VesselType;
+  details?: VesselDetails;
 }
 
 // ---- گزارش ماهانه ----
@@ -165,8 +173,10 @@ export interface TestHistoryEntry {
   companyPhone: string;
   companyAddress: string | null;
   vesselId: string | null;
-  vesselName: string;
-  vesselVolume: string;
+  vesselName: string | null;
+  vesselVolume: string | null;
+  vesselType: VesselType | null;
+  vesselDetails: VesselDetails;
   testDate: string; // ISO
   result: "approved";
   cycleCount: number | null;

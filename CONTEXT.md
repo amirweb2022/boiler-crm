@@ -1,11 +1,19 @@
 # Boiler Inspection CRM
 
-This system tracks recurring inspections of steam boilers and pressure vessels for companies.
+This system tracks recurring inspections of company equipment and the certificates that document each inspection cycle.
 
 ## Language
 
+**Inspection device**:
+A tank, boiler, lift, forklift, or grounding system tracked as one unit in a company's inspection cycle.
+_Avoid_: Vessel when referring to all supported equipment categories
+
+**Device details**:
+The type-specific descriptive information recorded for an inspection device. Tanks and boilers use a name and volume; lifts, forklifts, and grounding systems have their own details.
+_Avoid_: Vessel metadata
+
 **Inspection cycle**:
-One company's scheduled inspection period, ending when its eligible vessels have been accounted for and its certificate has been uploaded. A new cycle begins with the next Jalali-year due date.
+One company's scheduled inspection period, ending when its eligible inspection devices have been accounted for and its certificate has been uploaded. A new cycle begins with the next Jalali-year due date.
 
 **Current certificate**:
 An uploaded certificate belonging to the active inspection cycle. A certificate from an earlier cycle does not satisfy the active cycle's completion requirement.

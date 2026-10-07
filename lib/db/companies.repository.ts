@@ -58,6 +58,7 @@ function mapVesselRow(row: any): Vessel {
     companyId: row.company_id,
     name: row.name,
     volume: row.volume,
+    details: row.details ?? {},
     tested: row.tested,
     status: row.status,
     exclusionReason: row.exclusion_reason,
@@ -283,7 +284,7 @@ export async function markTestDoneAndStartNextCycle(
 
   const { data: vessels, error: vesselsError } = await db
     .from("vessels")
-    .select("id, name, volume, tested, status")
+    .select("id, name, volume, type, details, tested, status")
     .eq("company_id", companyId);
   if (vesselsError) throw vesselsError;
 
@@ -327,6 +328,8 @@ export async function markTestDoneAndStartNextCycle(
       vessel_id: v.id,
       vessel_name: v.name,
       vessel_volume: v.volume,
+      vessel_type: v.type,
+      vessel_details: v.details,
       test_date: current.test_date,
       result: "approved",
       cycle_count: completingCycleCount,

@@ -50,18 +50,39 @@ export const upsertRegionMapSchema = z.object({
   regionName: z.string().trim().min(1, "نام منطقه الزامی است").max(60),
 });
 
+const vesselTypeSchema = z.enum(["tank", "boiler", "lift", "forklift", "grounding"]);
+const vesselDetailsSchema = z.union([
+  z.object({ liftType: z.string().trim().min(1).max(150), capacityAndModel: z.string().trim().min(1).max(150) }).strict(),
+  z.object({ forkliftType: z.string().trim().min(1).max(150), capacity: z.string().trim().min(1).max(100) }).strict(),
+  z.object({ groundingSystemType: z.string().trim().min(1).max(150), wellCount: z.number().int().positive().max(10000) }).strict(),
+]);
+
 export const createVesselSchema = z.object({
   companyId: uuidSchema,
-  name: z.string().trim().min(1, "نام مخزن الزامی است").max(150),
-  volume: z.string().trim().min(1, "حجم مخزن الزامی است").max(50),
-  type: z.enum(["tank", "boiler"]),
-});
+  name: z.string().trim().min(1).max(150).optional(),
+  volume: z.string().trim().min(1).max(50).optional(),
+  type: vesselTypeSchema,
+  details: vesselDetailsSchema.optional(),
+}).superRefine(validateVesselFields);
 
 export const updateVesselSchema = z.object({
   name: z.string().trim().min(1).max(150).optional(),
   volume: z.string().trim().min(1).max(50).optional(),
-  type: z.enum(["tank", "boiler"]).optional(),
+  type: vesselTypeSchema.optional(),
+  details: vesselDetailsSchema.optional(),
+}).superRefine((value, ctx) => {
+  if (value.type) validateVesselFields(value, ctx);
 });
+
+function validateVesselFields(value: any, ctx: z.RefinementCtx) {
+  if (value.type === "tank" || value.type === "boiler") {
+    if (!value.name) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["name"], message: "نام دستگاه الزامی است" });
+    if (!value.volume) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["volume"], message: "ظرفیت دستگاه الزامی است" });
+  } else {
+    const expected = value.type === "lift" ? "liftType" : value.type === "forklift" ? "forkliftType" : "groundingSystemType";
+    if (!value.details || !(expected in value.details)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["details"], message: "اطلاعات دستگاه کامل نیست" });
+  }
+}
 
 export const toggleVesselSchema = z.object({
   tested: z.boolean(),

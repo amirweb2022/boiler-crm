@@ -40,10 +40,23 @@ interface AggregatedRow {
   count: number;
 }
 
+function reportDeviceFields(entry: TestHistoryEntry): { name: string; details: string } {
+  const values = entry.vesselDetails as Record<string, unknown>;
+  switch (entry.vesselType) {
+    case "lift": return { name: `بالابر — ${String(values.liftType ?? "")}`, details: String(values.capacityAndModel ?? "") };
+    case "forklift": return { name: `لیفتراک — ${String(values.forkliftType ?? "")}`, details: String(values.capacity ?? "") };
+    case "grounding": return { name: `ارت — ${String(values.groundingSystemType ?? "")}`, details: `${values.wellCount ?? ""} حلقه` };
+    case "boiler": return { name: entry.vesselName ?? "دیگ بخار", details: entry.vesselVolume ?? "" };
+    case "tank": return { name: entry.vesselName ?? "مخزن", details: entry.vesselVolume ?? "" };
+    default: return { name: entry.vesselName ?? "", details: entry.vesselVolume ?? "" };
+  }
+}
+
 function aggregate(entries: TestHistoryEntry[]): AggregatedRow[] {
   const map = new Map<string, AggregatedRow>();
   for (const e of entries) {
-    const key = `${e.companyName}||${e.vesselName}||${e.vesselVolume}||${e.testDate}`;
+    const display = reportDeviceFields(e);
+    const key = `${e.companyName}||${e.vesselType}||${display.name}||${display.details}||${e.testDate}`;
     const existing = map.get(key);
     if (existing) {
       existing.count += 1;
@@ -54,8 +67,8 @@ function aggregate(entries: TestHistoryEntry[]): AggregatedRow[] {
       province: e.companyProvince,
       city: e.companyCity ?? "",
       addressAndPhone: [e.companyAddress, e.companyPhone].filter(Boolean).join("، "),
-      vesselName: e.vesselName,
-      vesselVolume: e.vesselVolume,
+      vesselName: display.name,
+      vesselVolume: display.details,
       testDate: e.testDate,
       count: 1,
     });

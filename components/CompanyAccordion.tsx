@@ -17,6 +17,21 @@ import AddEditCompanyModal from "./AddEditCompanyModal";
 import AddEditVesselModal from "./AddEditVesselModal";
 import CertificateUploadModal from "./CertificateUploadModal";
 import CertificateGenerateModal from "./CertificateGenerateModal";
+function getVesselTitle(vessel: Vessel): string {
+  const details = vessel.details as Record<string, unknown>;
+  if (vessel.type === "lift") return `بالابر — ${String(details.liftType ?? "")}`;
+  if (vessel.type === "forklift") return `لیفتراک — ${String(details.forkliftType ?? "")}`;
+  if (vessel.type === "grounding") return `ارت — ${String(details.groundingSystemType ?? "")}`;
+  return vessel.name ?? (vessel.type === "boiler" ? "دیگ بخار" : "مخزن");
+}
+
+function getVesselDetailsLabel(vessel: Vessel): string {
+  const details = vessel.details as Record<string, unknown>;
+  if (vessel.type === "lift") return String(details.capacityAndModel ?? "");
+  if (vessel.type === "forklift") return String(details.capacity ?? "");
+  if (vessel.type === "grounding") return `${details.wellCount ?? ""} حلقه`;
+  return vessel.volume ?? "";
+}
 const PROXIMITY_LABEL: Record<
   TestProximity,
   { text: string; className: string }
@@ -372,10 +387,10 @@ export default function CompanyAccordion() {
                                       معاف از این چرخه
                                     </span>
                                     <span className="text-gray-500 dark:text-slate-300">
-                                      {v.name}
+                                      {getVesselTitle(v)}
                                     </span>
                                     <span className="text-xs text-gray-400 dark:text-slate-400">
-                                      {v.volume}
+                                      {getVesselDetailsLabel(v)}
                                     </span>
                                     {v.exclusionReason && (
                                       <button
@@ -422,10 +437,10 @@ export default function CompanyAccordion() {
                                         : ""
                                     }
                                   >
-                                    {v.name}
+                                    {getVesselTitle(v)}
                                   </span>
                                   <span className="text-xs text-gray-400 dark:text-slate-400">
-                                    {v.volume}
+                                    {getVesselDetailsLabel(v)}
                                   </span>
                                 </label>
                               )}
@@ -467,7 +482,7 @@ export default function CompanyAccordion() {
                                   >
                                     حذف
                                   </button>
-                                  {!isExcluded && (
+                                  {!isExcluded && (v.type === "tank" || v.type === "boiler") && (
                                     <button
                                       onClick={() => setCertificateVessel(v)}
                                       className="text-xs text-purple-700 dark:text-purple-300 hover:text-purple-900 dark:hover:text-purple-200 font-medium"
@@ -506,7 +521,7 @@ export default function CompanyAccordion() {
                         onClick={() => setVesselModal({ companyId: c.id })}
                         className="mt-2 text-sm text-brand-600 dark:text-blue-400 hover:text-brand-700 dark:hover:text-blue-300 font-medium"
                       >
-                        + افزودن مخزن
+                        + افزودن دستگاه
                       </button>
                     )}
 

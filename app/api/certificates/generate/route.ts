@@ -31,6 +31,10 @@ export async function POST(req: NextRequest) {
       .single();
     if (vesselError || !vessel) throw new ValidationError("مخزن یافت نشد");
 
+    if (vessel.type !== "tank" && vessel.type !== "boiler") {
+      throw new ValidationError("تولید گواهی فقط برای مخزن و دیگ بخار در دسترس است");
+    }
+
     const vesselType = (vessel.type ?? "tank") as "tank" | "boiler";
     const company = vessel.companies;
     const testRecord = Array.isArray(company?.test_records) ? company.test_records[0] : company?.test_records;
