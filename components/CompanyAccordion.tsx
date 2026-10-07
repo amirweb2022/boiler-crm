@@ -330,6 +330,7 @@ export default function CompanyAccordion() {
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-4 text-sm text-gray-600 dark:text-slate-300">
                       <div className="flex gap-4 flex-wrap">
                         <span dir="ltr">📞 {c.phone}</span>
+                        {c.contactName && <span>نام مسئول: {c.contactName}</span>}
                         <span>📍 {c.province}</span>
                         {c.address && <span>🏠 {c.address}</span>}
                       </div>

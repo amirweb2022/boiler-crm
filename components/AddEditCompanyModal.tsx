@@ -25,6 +25,7 @@ export default function AddEditCompanyModal({ company, onClose, onSaved }: Props
 
   const [catalogCode, setCatalogCode] = useState(company?.catalogCode ?? "");
   const [phone, setPhone] = useState(company?.phone ?? "");
+  const [contactName, setContactName] = useState(company?.contactName ?? "");
   const [province, setProvince] = useState(company?.province ?? "");
   const [city, setCity] = useState(company?.city ?? "");
   const [address, setAddress] = useState(company?.address ?? "");
@@ -58,8 +59,8 @@ export default function AddEditCompanyModal({ company, onClose, onSaved }: Props
     try {
       const testDateISO = dateObjectToISO(shamsiDate);
       const payload = isEdit
-        ? { phone, province, city, address, testDate: testDateISO }
-        : { catalogCode, phone, province, city, address, testDate: testDateISO };
+        ? { phone, contactName, province, city, address, testDate: testDateISO }
+        : { catalogCode, phone, contactName, province, city, address, testDate: testDateISO };
 
       const res = await fetch(isEdit ? `/api/companies/${company!.id}` : "/api/companies", {
         method: isEdit ? "PUT" : "POST",
@@ -103,6 +104,10 @@ export default function AddEditCompanyModal({ company, onClose, onSaved }: Props
 
         <Field label="شماره تلفن">
           <input className="input" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+        </Field>
+
+        <Field label="نام مسئول">
+          <input className="input" value={contactName} onChange={(e) => setContactName(e.target.value)} maxLength={120} />
         </Field>
 
         <Field label="استان">

@@ -25,6 +25,7 @@ export interface Company {
   catalogCode: string;
   name: string;
   phone: string;
+  contactName: string | null;
   province: string;
   address: string | null;
   city: string | null;
@@ -122,6 +123,7 @@ export interface CompanyListFilters {
 export interface CreateCompanyInput {
   catalogCode: string;
   phone: string;
+  contactName?: string;
   province: string;
   city?: string;
   address?: string;
@@ -130,6 +132,7 @@ export interface CreateCompanyInput {
 
 export interface UpdateCompanyInput {
   phone?: string;
+  contactName?: string;
   province?: string;
   city?: string;
   address?: string;

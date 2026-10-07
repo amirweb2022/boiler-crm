@@ -31,6 +31,7 @@ create table if not exists companies (
   catalog_code varchar(20) not null unique,
   name         varchar(200) not null,
   phone        varchar(15) not null,
+  contact_name varchar(120),
   province     varchar(60) not null,
   city         varchar(60),
   address      text,

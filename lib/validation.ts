@@ -28,6 +28,7 @@ export const loginSchema = z.object({
 export const createCompanySchema = z.object({
   catalogCode: z.string().trim().min(1).max(20),
   phone: phoneSchema,
+  contactName: z.string().trim().max(120).optional(),
   province: z.string().trim().min(1, "استان الزامی است").max(60),
   city: z.string().trim().max(60).optional(),
   address: z.string().trim().max(500).optional(),
@@ -36,6 +37,7 @@ export const createCompanySchema = z.object({
 
 export const updateCompanySchema = z.object({
   phone: phoneSchema.optional(),
+  contactName: z.string().trim().max(120).optional(),
   province: z.string().trim().min(1).max(60).optional(),
   city: z.string().trim().max(60).optional(),
   address: z.string().trim().max(500).optional(),

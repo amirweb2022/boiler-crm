@@ -24,6 +24,7 @@ function mapCompanyRow(row: any): Company {
     catalogCode: row.catalog_code,
     name: row.name,
     phone: row.phone,
+    contactName: row.contact_name ?? null,
     province: row.province,
     city: row.city,
     address: row.address,
@@ -172,6 +173,7 @@ export async function createCompanyWithTestRecord(
       catalog_code: catalogEntry.code,
       name: catalogEntry.name,
       phone: input.phone,
+      contact_name: input.contactName ?? null,
       province: input.province,
       city: input.city ?? null,
       address: input.address ?? null,
@@ -203,6 +205,7 @@ export async function updateCompany(
   const db = getSupabaseServerClient();
   const patch: Record<string, any> = {};
   if (input.phone) patch.phone = input.phone;
+  if (input.contactName !== undefined) patch.contact_name = input.contactName || null;
   if (input.province) patch.province = input.province;
   if (input.city !== undefined) patch.city = input.city;
   if (input.address !== undefined) patch.address = input.address;
