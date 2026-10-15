@@ -4,7 +4,7 @@ import { getClientIp } from "../../../../../lib/rate-limit";
 import { logAudit } from "../../../../../lib/audit";
 import { getSmsProvider } from "../../../../../lib/sms";
 import { calendarDaysUntil, getTehranClock, isReminderSendTime } from "../../../../../lib/sms/reminder-policy";
-import { getSupabaseServerClient } from "../../../../../lib/supabase/server";
+import { query } from "../../../../../lib/db/postgres";
 
 export async function POST(
   request: Request,
@@ -17,30 +17,21 @@ export async function POST(
       return NextResponse.json({ error: "ارسال پیامک فقط از ساعت ۰۸:۰۰ تا پیش از ۲۲:۰۰ به وقت تهران امکان‌پذیر است" }, { status: 403 });
     }
 
-    const db = getSupabaseServerClient();
-    const { data: record, error: recordError } = await db
-      .from("test_records")
-      .select("id, test_date, status, companies!inner(id, name, phone, status)")
-      .eq("id", params.testRecordId)
-      .maybeSingle();
-    if (recordError) throw recordError;
+    const { rows } = await query(`SELECT tr.id,tr.test_date,tr.status,c.id AS company_id,c.name,c.phone,c.status AS company_status FROM test_records tr JOIN companies c ON c.id=tr.company_id WHERE tr.id=$1`, [params.testRecordId]);
+    const record = rows[0];
     if (!record || record.status !== "pending") {
       return NextResponse.json({ error: "این شرکت در چرخه آزمون جاری واجد شرایط یادآوری نیست" }, { status: 404 });
     }
 
-    const company = Array.isArray(record.companies) ? record.companies[0] : record.companies;
+    const company = { id: record.company_id, name: record.name, phone: record.phone, status: record.company_status };
     const { date } = getTehranClock(now);
     const remainingDays = calendarDaysUntil(record.test_date, date);
     if (company.status !== "active" || remainingDays < 1 || remainingDays > 2) {
       return NextResponse.json({ error: "این شرکت در حال حاضر به پیامک یادآوری نیاز ندارد" }, { status: 409 });
     }
 
-    const { data: claimed, error: claimError } = await db.rpc("claim_reminder", {
-      record_id: record.id,
-      due_date: record.test_date,
-    });
-    if (claimError) throw claimError;
-    if (!claimed) {
+    const { rows: claimRows } = await query(`INSERT INTO reminder_claims(test_record_id,test_date,status) VALUES($1,$2,'sending') ON CONFLICT(test_record_id,test_date) DO UPDATE SET status='sending',claimed_at=now() WHERE reminder_claims.status='failed' RETURNING test_record_id`, [record.id, record.test_date]);
+    if (!claimRows.length) {
       return NextResponse.json({ error: "یادآوری این چرخه قبلاً ارسال شده یا در حال ارسال است" }, { status: 409 });
     }
 
@@ -52,23 +43,11 @@ export async function POST(
       result = { success: false, error: error?.message ?? "خطا در ارتباط با سرویس پیامک" };
     }
 
-    const { error: statusError } = await db.from("reminder_claims")
-      .update({ status: result.success ? "sent" : "failed" })
-      .eq("test_record_id", record.id)
-      .eq("test_date", record.test_date);
-    if (statusError) console.error("Failed to update SMS reminder claim", statusError);
+    try { await query(`UPDATE reminder_claims SET status=$3 WHERE test_record_id=$1 AND test_date=$2`, [record.id,record.test_date,result.success?"sent":"failed"]); }
+    catch(error) { console.error("Failed to update SMS reminder claim",error); }
 
-    const { error: notificationError } = await db.from("notifications").insert({
-      company_id: company.id,
-      test_record_id: record.id,
-      phone: company.phone,
-      message,
-      type: "reminder",
-      status: result.success ? "sent" : "failed",
-      provider_ref: result.providerRef ?? null,
-      sent_at: result.success ? new Date().toISOString() : null,
-    });
-    if (notificationError) console.error("Failed to record SMS reminder", notificationError);
+    try { await query(`INSERT INTO notifications(company_id,test_record_id,phone,message,type,status,provider_ref,sent_at) VALUES($1,$2,$3,$4,'reminder',$5,$6,$7)`, [company.id,record.id,company.phone,message,result.success?"sent":"failed",result.providerRef??null,result.success?new Date():null]); }
+    catch(error) { console.error("Failed to record SMS reminder",error); }
 
     await logAudit({
       adminId: admin.id,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole, ForbiddenError } from "../../../../lib/auth";
-import { getSupabaseServerClient } from "../../../../lib/supabase/server";
+import { query } from "../../../../lib/db/postgres";
 import { generateCertificatePdf } from "../../../../lib/certificates/generate";
 import { getCertificateFields } from "../../../../lib/certificates/field-schema";
 import { toShamsiDisplay } from "../../../../lib/date/shamsi";
@@ -23,21 +23,17 @@ export async function POST(req: NextRequest) {
     const admin = await requireRole("admin");
     const body = parseOrThrow(generateCertificateSchema, await req.json());
 
-    const db = getSupabaseServerClient();
-    const { data: vessel, error: vesselError } = await db
-      .from("vessels")
-      .select("*, companies(*, test_records(*))")
-      .eq("id", body.vesselId)
-      .single();
-    if (vesselError || !vessel) throw new ValidationError("مخزن یافت نشد");
+    const { rows } = await query(`SELECT v.*,c.id AS company_id,c.name AS company_name,c.address AS company_address,tr.test_date FROM vessels v JOIN companies c ON c.id=v.company_id LEFT JOIN test_records tr ON tr.company_id=c.id WHERE v.id=$1`, [body.vesselId]);
+    const vessel = rows[0];
+    if (!vessel) throw new ValidationError("مخزن یافت نشد");
 
     if (vessel.type !== "tank" && vessel.type !== "boiler") {
       throw new ValidationError("تولید گواهی فقط برای مخزن و دیگ بخار در دسترس است");
     }
 
     const vesselType = (vessel.type ?? "tank") as "tank" | "boiler";
-    const company = vessel.companies;
-    const testRecord = Array.isArray(company?.test_records) ? company.test_records[0] : company?.test_records;
+    const company = { id: vessel.company_id, name: vessel.company_name, address: vessel.company_address };
+    const testRecord = vessel.test_date ? { test_date: vessel.test_date } : null;
 
     const fields = getCertificateFields(vesselType);
 
@@ -51,8 +47,8 @@ export async function POST(req: NextRequest) {
     }
 
     const autoValues: Record<string, string> = {
-      companyName: company?.name ?? "",
-      companyAddress: company?.address ?? "",
+      companyName: company.name ?? "",
+      companyAddress: company.address ?? "",
       vesselVolume: vessel.volume ?? "",
       testDate: testRecord ? toShamsiDisplay(testRecord.test_date) : "",
     };
@@ -64,18 +60,8 @@ export async function POST(req: NextRequest) {
 
     const pdfBuffer = await generateCertificatePdf({ vesselType, values: mergedValues });
 
-    const { data: certRow, error: certError } = await db
-      .from("generated_certificates")
-      .insert({
-        vessel_id: vessel.id,
-        company_id: company?.id ?? null,
-        equipment_type: vesselType,
-        field_values: mergedValues,
-        generated_by: admin.id,
-      })
-      .select()
-      .single();
-    if (certError) throw certError;
+    const { rows: certRows } = await query(`INSERT INTO generated_certificates(vessel_id,company_id,equipment_type,field_values,generated_by) VALUES($1,$2,$3,$4::jsonb,$5) RETURNING *`, [vessel.id,company.id,vesselType,JSON.stringify(mergedValues),admin.id]);
+    const certRow = certRows[0];
 
     await logAudit({
       adminId: admin.id,

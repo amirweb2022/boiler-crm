@@ -95,15 +95,8 @@ export async function generateCertificatePdf(
   input: GenerateCertificateInput,
 ): Promise<Buffer> {
   const html = buildHtml(input);
-  const chromePaths = [
-    String.raw`C:\Program Files\Google\Chrome\Application\chrome.exe`,
-    String.raw`C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`,
-    String.raw`${process.env.LOCALAPPDATA}\Google\Chrome\Application\chrome.exe`,
-  ];
-  const executablePath = chromePaths.find((path) => fs.existsSync(path));
-  if (!executablePath) {
-    throw new Error("Google Chrome was not found.");
-  }
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH ?? puppeteer.executablePath();
+  if (!fs.existsSync(executablePath)) throw new Error("Puppeteer Chrome was not found.");
   const browser = await puppeteer.launch({
     executablePath,
     headless: true,

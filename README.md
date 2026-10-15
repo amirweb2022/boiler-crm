@@ -1,161 +1,36 @@
-# سامانه مدیریت آزمون دیگ بخار / مخازن تحت فشار
+# Boiler and Pressure Vessel Inspection CRM
 
-این برنامه شرکت‌ها، مخازن و دیگ‌ها، چرخه‌های آزمون، گواهی‌ها، یادآوری پیامکی و گزارش ماهانه را مدیریت می‌کند.
+A Persian, right-to-left CRM for companies, inspection vessels, annual test cycles, certificates, reminders, audit history, and monthly Excel reports.
 
-## معماری داده
+## Architecture
 
-```
-companies (۱) ──── (۱) test_records     ← یک تاریخ آزمون به‌ازای هر شرکت
-     │
-     └──── (∞) vessels                  ← مخازن، هرکدام چک‌باکس «تست‌شده» مستقل
-```
+- Next.js 14 App Router runs on Liara Next.js hosting.
+- Liara managed PostgreSQL stores application data. The full fresh-install schema is [`database/schema.sql`](database/schema.sql).
+- Liara Object Storage stores uploaded certificates through its S3-compatible API.
+- `lib/db/postgres.ts` owns server-side PostgreSQL connections and transactions. Feature repositories live in `lib/db/`.
+- `lib/storage/certificates.ts` owns certificate object uploads and public URL generation.
 
-### چرخه‌ی «ثبت انجام» به‌طور دقیق چطور کار می‌کند
-۱. کاربر مخازن را یکی‌یکی تیک می‌زند (فقط وقتی `daysUntil(testDate) <= 0`، یعنی سررسید رسیده، قابل تیک است — این هم در UI و هم در API دوباره چک می‌شود).
-۲. وقتی همه‌ی مخازن تیک خوردند یا برای همین چرخه با دلیل معاف شدند، امکان آپلود گواهی فراهم می‌شود؛ «ثبت انجام» علاوه بر این به گواهی آپلودشده نیاز دارد.
-۳. با زدن «ثبت انجام» (`lib/db/companies.repository.ts → markTestDoneAndStartNextCycle`):
-   - `test_date` یک سال شمسی جلو می‌رود (روی همان رکورد)
-   - `status` بلافاصله به `pending` برمی‌گردد (چرخه جدید شروع می‌شود)
-   - گواهی چرخه قبل در تاریخچه ثبت و از رکورد چرخه فعلی جدا می‌شود؛ فایل آن در Storage باقی می‌ماند.
-   - تیک تمام مخازن آن شرکت ریست می‌شود (`tested = false`)
-   - فقط مخازن واقعاً تست‌شده در `test_history` برای گزارش ماهانه ثبت می‌شوند.
-   - `cycle_count` یکی زیاد می‌شود (برای آمار/تاریخچه)
+Company inspection cycles use Jalali year rollover while database dates remain Gregorian. Completion stores tested-vessel snapshots in `test_history`, archives certificate references, advances the existing test record, and resets cycle-specific vessel flags in one transaction. Uploaded certificates remain separate from generated vessel PDFs.
 
----
+## Local development
 
-## گزارش امنیتی — چه کاری انجام شد و چرا
+1. Install dependencies and copy `.env.example` to `.env.local`.
+2. Create a PostgreSQL database and apply `database/schema.sql`.
+3. Create an S3-compatible bucket and configure the `LIARA_OBJECT_STORAGE_*` variables in `.env.local`.
+4. Create an administrator:
 
-این بخش را دقیق بخوان چون «بالاترین حد امنیت ممکن» یک هدف نسبی است؛ در ادامه هرچه پیاده‌سازی شده و هرچه هنوز باقی مانده را شفاف فهرست کرده‌ام.
+   ```bash
+   npx tsx --env-file=.env.local scripts/create-admin.ts 09121234567 "PasswordStrong123" "Admin name" admin
+   ```
 
-### ✅ پیاده‌سازی‌شده در این نسخه
-1. **Rate limiting دیتابیس‌محور برای ورود** (`lib/rate-limit.ts`): بعد از ۵ تلاش ناموفق در ۱۵ دقیقه، شماره قفل می‌شود. چون Vercel/سرورلس چند اینستنس دارد، این محدودیت در جدول `login_attempts` نگه داشته می‌شود، نه حافظه process (که در سرورلس قابل‌اتکا نیست).
-2. **جلوگیری از Timing Attack و User Enumeration در لاگین**: حتی وقتی شماره پیدا نشود، یک `bcrypt.compare` روی هش ثابت اجرا می‌شود تا زمان پاسخ برای «کاربر وجود ندارد» و «رمز اشتباه است» یکسان بماند.
-3. **اعتبارسنجی متمرکز با Zod** (`lib/validation.ts`): همه ورودی API (فرمت موبایل ایران، UUID، طول رشته‌ها، فرمت تاریخ) قبل از رسیدن به دیتابیس رد می‌شوند.
-4. **دوباره‌بررسی مجوزها سمت سرور، نه فقط UI**: مثال حیاتی — تیک‌زدن مخزن فقط وقتی «دکمه در UI فعال است» ممکن نیست؛ چون کاربر می‌تواند مستقیم به API درخواست بزند، این شرط (سررسید فرارسیده) در `lib/db/vessels.repository.ts` هم دوباره چک می‌شود.
-5. **Audit Log کامل** (`lib/audit.ts` + جدول `audit_logs`): هر عملیات حساس (ساخت/ویرایش/حذف شرکت و مخزن، ثبت انجام، آپلود گواهی، لاگین) با شناسه ادمین، IP و timestamp ثبت می‌شود.
-6. **اعتبارسنجی و محدودسازی فایل آپلودی**: فقط PDF/JPG/PNG، حداکثر ۵ مگابایت؛ نام فایل با UUID تصادفی بازسازی می‌شود (نه نام اصلی کاربر) تا از path traversal یا کاراکترهای مخرب جلوگیری شود.
-7. **هدرهای امنیتی HTTP سراسری** (`next.config.js`): `Content-Security-Policy`, `X-Frame-Options: DENY` (ضدClickjacking), `X-Content-Type-Options: nosniff`, `Strict-Transport-Security`, `Permissions-Policy`.
-8. **جلوگیری از SQL Injection**: چون همه کوئری‌ها از طریق کلاینت پارامتریک Supabase انجام می‌شود (نه رشته خام SQL)، این حمله ذاتاً مسدود است. علاوه‌براین، فیلتر جستجو (`ilike`/`or`) کاراکترهای خاص (`%` و `,`) را escape می‌کند تا ورودی کاربر ساختار کوئری را نشکند.
-9. **کوکی نشست امن**: `httpOnly` (غیرقابل‌خواندن با جاوااسکریپت، ضد XSS-cookie-theft)، `secure` در production، `sameSite=lax` (محافظت پایه در برابر CSRF).
-10. **Row Level Security فعال روی همه جداول** بدون هیچ policy عمومی — یعنی حتی اگر anon key به هر شکلی لو برود، هیچ دسترسی به داده نمی‌دهد؛ فقط service_role (که فقط سمت سرور است) دسترسی دارد.
-11. **جداسازی کامل service role key از کلاینت**: هیچ فایلی که `"use client"` دارد، `lib/supabase/server.ts` را import نمی‌کند.
-12. **سیاست رمزعبور**: در `scripts/create-admin.ts` رمز ضعیف (کمتر از ۸ کاراکتر یا بدون عدد) رد می‌شود؛ هش با bcrypt cost=12.
+5. Start the app with `npm run dev`.
 
-### ⚠️ توصیه‌شده برای قبل از استفاده‌ی واقعی (Production) — هنوز پیاده‌سازی نشده
-این‌ها را باید قبل از رفتن به تولید واقعی (نه صرفاً تست داخلی) انجام دهید:
+See [`docs/liara-deployment.md`](docs/liara-deployment.md) for Liara provisioning, deployment variables, certificate cleanup scheduling, and PDF runtime requirements. The repository starts with a fresh Liara database; it contains no Supabase data or file import step.
 
-1. **HTTPS اجباری واقعی**: هدر HSTS گذاشته شده، اما این فقط روی یک دامنه‌ی واقعی با گواهی SSL معتبر (که Vercel خودکار می‌دهد) معنا پیدا می‌کند.
-2. **Secrets در Vercel/محیط production نه در فایل**: `.env.local` هرگز نباید commit شود؛ در پنل Vercel از "Environment Variables" استفاده کنید.
-3. **دو مرحله‌ای‌سازی ورود ادمین (2FA)**: فعلاً فقط رمز+موبایل. برای سیستمی که داده‌های صنعتی حساس دارد، افزودن OTP پیامکی برای ورود پیشنهاد می‌شود (فاز بعد).
-4. **Signed URL به‌جای Public URL برای گواهی‌ها**: الان `getPublicUrl` استفاده شده که یعنی هرکسی با لینک، بدون احراز هویت، فایل را می‌بیند. برای فاز تولید به `createSignedUrl` با انقضای کوتاه تغییر دهید.
-5. **وابستگی‌ها را مرتب اسکن کنید**: `npm audit` و ابزارهایی مثل Dependabot/Snyk برای هشدار خودکار آسیب‌پذیری پکیج‌ها.
-6. **بک‌آپ خودکار دیتابیس**: Supabase در پلن Pro بک‌آپ روزانه دارد؛ در Free اینطور نیست — حتماً قبل از تولید واقعی پلن را بررسی کنید.
-7. **محدودسازی نرخ روی همه‌ی API ها، نه فقط لاگین**: الان فقط لاگین rate-limit دارد. برای production، یک لایه‌ی WAF/Rate-limit عمومی (مثل Vercel Firewall یا Cloudflare) روی کل دامنه توصیه می‌شود.
-8. **تست نفوذ (Penetration Test)**: هیچ ادعایی از «امنیت مطلق» واقعی نیست — قبل از استفاده با داده‌ی واقعی صنعتی، یک تست نفوذ حرفه‌ای (حتی پایه) انجام دهید.
+## Operational notes
 
----
-
-## پیشنهاد دیتابیس — چه چیزی مناسب این پروژه است؟
-
-### برآورد واقعی حجم داده
-با توجه به ماهیت این سیستم (فقط ادمین‌محور، نه اپلیکیشن مصرف‌کننده‌ی عمومی با هزاران کاربر همزمان):
-- تعداد شرکت‌ها: احتمالاً چند ده تا چند صد (کاتالوگ فعلی ۱۰ تاست، حتی با رشد به هزاران شرکت هم داده‌ی سنگینی نیست)
-- مخازن هر شرکت: چند تا حداکثر چند ده‌تا → مجموع کل جدول vessels شاید چند هزار ردیف
-- کاربران هم‌زمان: تعداد ادمین‌ها احتمالاً زیر ۱۰-۲۰ نفر
-- بار اصلی: چند کوئری خواندن/نوشتن ساده در روز + یک cron روزانه برای پیامک
-
-این یعنی **حجم داده و بار، به‌هیچ‌وجه در سطح «Big Data» یا حتی «متوسط» نیست.**
-
-### پیشنهاد مشخص
-| گزینه | مناسب برای | مشخصات پیشنهادی |
-|---|---|---|
-| **Supabase Free** | تست/MVP، تعداد کم ادمین | کافیست؛ محدودیت اصلی نبود بک‌آپ روزانه‌ی خودکار و pause بعد از عدم استفاده |
-| **Supabase Pro ($25/ماه)** | استفاده واقعی تولید | ✅ **پیشنهاد اصلی من** — بک‌آپ روزانه، بدون pause، ۸ گیگ دیتابیس (خیلی بیشتر از نیاز واقعی این پروژه) |
-| **PostgreSQL مستقل (self-hosted)** | اگر می‌خواهید کامل مستقل از Supabase باشید (طبق ترجیحی که قبلاً دادید) | **۱ vCPU / ۲ گیگ رم / ۲۰-۴۰ گیگ SSD** کاملاً کافی است. حتی با رشد ۱۰ برابری داده، به بیش از ۲ vCPU / ۴ گیگ رم نیاز پیدا نمی‌کنید. |
-
-**چرا این‌قدر کم؟** چون این یک سیستم CRM داخلی با نوشتن/خواندن سبک است، نه یک سرویس با ترافیک بالا. حتی با ۱۰,۰۰۰ شرکت و ۵۰,۰۰۰ مخزن (خیلی فراتر از نیاز واقعی صنعت دیگ بخار در ایران)، کل دیتابیس چند صد مگابایت می‌شود که روی یک VPS ۲ گیگ رمی به‌راحتی جواب می‌دهد.
-
-**توصیه نهایی من**: با Supabase (طبق تصمیم فعلی برای MVP) شروع کنید؛ اگر بعداً به self-hosted مهاجرت کردید (که معماری کد از قبل برایش آماده است)، یک VPS با **۲ vCPU، ۴ گیگ رم، ۴۰ گیگ SSD** (مثل یک سرور ۵-۱۰ دلاری ماهانه‌ی اکثر ارائه‌دهنده‌ها) هم برای اپلیکیشن Next.js و هم برای Postgres کاملاً کافی است — نیازی به سرور اختصاصی سنگین نیست.
-
----
-
-## سطوح دسترسی (نقش‌ها) — افزوده‌شده
-
-| نقش | مجاز به |
-|---|---|
-| `admin` | همه‌چیز: ساخت/ویرایش/حذف شرکت و مخزن، تیک‌زدن مخزن، ثبت گواهی، ثبت انجام |
-| `tester` | فقط تیک‌زدن/برداشتن تیک وضعیت «تست‌شده» مخازن (و آن‌هم فقط وقتی سررسید فرارسیده باشد) |
-
-بررسی نقش هم در API (`requireRole` در `lib/auth.ts`) و هم در UI (`CompanyAccordion.tsx`) انجام می‌شود — کنترل واقعی همیشه سمت سرور است.
-
-ساخت کاربر تستر:
-```bash
-npx tsx --env-file=.env.local scripts/create-admin.ts 09123456789 "TesterPass123!" "نام تستر" tester
-```
-
-## چرخه‌ی جدید گواهی (تغییر مهم)
-
-اکنون:
-1. «ثبت انجام» فقط وقتی فعال است که: تاریخ فرارسیده + همه مخازن تیک خورده + **گواهی آپلود شده باشد**.
-2. با زدن «ثبت انجام»، گواهی در `certificate_history` بایگانی و از چرخه فعلی جدا می‌شود؛ تاریخ +۱ سال و تیک مخازن ریست می‌شود.
-3. فایل تاریخی در Storage باقی می‌ماند و مدیر می‌تواند آن را از اطلاعات شرکت دانلود کند. برای چرخه جدید یک گواهی تازه لازم است.
-
-در نصب موجود، ابتدا `supabase/migrations/005_cycle_certificates_reminders.sql` را اجرا کنید؛ نصب تازه از `supabase/schema.sql` استفاده می‌کند. زمان‌بندی Vercel در `vercel.json` روزانه ساعت ۰۵:۰۰ UTC (۰۸:۳۰ تهران) اجرا می‌شود. این زمان‌بندی پس از استقرار production فعال است؛ مقدار `CRON_SECRET` را در متغیرهای production همان پروژه تنظیم کنید.
-
-## تست پیامک قبل از خرید پنل کاوه‌نگار
-
-برای دیدن دقیق فرمت پیامک یادآوری در کنسول، بدون نیاز به ساختن شرکت با تاریخ خاص:
-```bash
-npx tsx --env-file=.env.local scripts/preview-sms.ts        # با تنظیمات پیش‌فرض (۲ روز)
-npx tsx --env-file=.env.local scripts/preview-sms.ts 3 "پارس خزر"   # سفارشی
-```
-این دستور دقیقاً همان قالب متنی cron واقعی را با `MockSmsProvider` در کنسول چاپ می‌کند.
-
-برای تست کامل جریان (شامل چک تاریخ واقعی و دیتابیس)، یک شرکت با تاریخ آزمون = امروز + `SMS_REMINDER_DAYS_BEFORE` روز بساز، بعد بین ساعت ۰۸:۰۰ و پیش از ۲۰:۰۰ به وقت تهران اجرا کن:
-```bash
-curl -H "x-cron-secret: <CRON_SECRET شما>" http://localhost:3000/api/sms/send-reminders
-```
-
-
-## گزارش ماهانه اکسل (افزوده‌شده)
-
-- **منبع داده**: جدول جدید `test_history` — در لحظه‌ی «ثبت انجام»، هر مخزنی که واقعاً تست شده (نه معاف‌شده) به‌صورت دائمی اینجا ثبت می‌شود. برخلاف `test_records`، این جدول هرگز بازنویسی نمی‌شود.
-- **دکمه‌ی دانلود**: همیشه از روز اول هر ماه، گزارش ماه قبل («دانلود گزارش مرداد») فعاله و روی کلیک، همون لحظه از `test_history` ساخته می‌شه (نه از‌قبل‌تولیدشده).
-- **قالب خروجی**: دقیقاً مطابق نمونه‌ای که کارفرما داد — یک شیت به‌ازای هر «منطقه»، ردیف عنوان، هدر ثابت، و ردیف‌هایی که مخازن هم‌نام/هم‌حجم یک شرکت را با «تعداد» جمع می‌زنند.
-- **نگاشت منطقه**: چون شیت‌بندی (مثلاً «شمال» چند استان با هم) با استان یکی نیست، از `/dashboard/reports` قابل تنظیم دستی است. استان بدون نگاشت، با نام خودش شیت جدا می‌شود.
-- **نام/شناسه‌ی بررسی‌کننده**: مقدار ثابت است، از env (`REPORT_INSPECTOR_NAME`, `REPORT_INSPECTOR_NATIONAL_ID`) خوانده می‌شود.
-- **نتیجه**: فعلاً فقط «تأیید» — طبق تصمیم فعلی، هر مخزن تیک‌خورده یعنی تأیید شده (بدون مفهوم رد).
-
-## اجرای محلی
-
-```bash
-npm install
-cp .env.example .env.local
-# اجرای supabase/schema.sql در SQL Editor پروژه Supabase
-# برای دیتابیس موجود، migrationهای جدید را به‌ترتیب اعمال کنید (شامل 004_generated_certificates.sql)
-# ساخت bucket با نام "certificates" در بخش Storage
-npx tsx --env-file=.env.local scripts/create-admin.ts 09121234567 "PasswordStrong123"
-npm run dev
-```
-
-## ساختار پوشه‌ها (بخش‌های جدید)
-```
-lib/
-  data/companies-catalog.ts    ← کاتالوگ ثابت شرکت‌ها
-  db/vessels.repository.ts     ← CRUD و toggle مخازن با کنترل دسترسی
-  validation.ts                ← اسکیماهای zod برای همه API
-  rate-limit.ts                ← محدودسازی نرخ ورود (دیتابیس‌محور)
-  audit.ts                     ← ثبت گزارش عملیات حساس
-app/api/vessels/                ← CRUD مخزن + toggle
-components/
-  CompanyAccordion.tsx          ← جایگزین CompanyTable قبلی
-  AddEditVesselModal.tsx
-next.config.js                  ← هدرهای امنیتی HTTP
-```
-
-## نقشه راه فاز بعد
-- [ ] Signed URL برای گواهی‌ها (به‌جای public URL)
-- [ ] OTP پیامکی برای ورود ادمین (2FA)
-- [ ] Export اکسل از لیست فیلترشده
-- [ ] صفحه‌ی مشاهده audit_logs برای super_admin
-- [ ] چند نقش ادمین واقعی (super_admin مدیریت ادمین‌های دیگر)
+- Server-side role checks remain in API routes. Keep database and Object Storage credentials out of client bundles and version control.
+- Uploaded certificate links are public, matching the existing product behavior. The object key is stored in PostgreSQL alongside the URL.
+- Liara's Next.js Cron Job settings must invoke `/api/cron/clear-stale-certificates` daily. Keep `CRON_SECRET` configured and use the authorization header where supported.
+- PDF generation needs Puppeteer Chrome and Linux runtime libraries. `PUPPETEER_EXECUTABLE_PATH` can override Puppeteer's default executable path.
+- The repository has no automated test suite. Use the PRD acceptance scenarios and Liara staging deployment when validating behavior.

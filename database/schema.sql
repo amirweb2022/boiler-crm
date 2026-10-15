@@ -1,11 +1,9 @@
 -- =====================================================================
 -- Boiler / Pressure-Vessel Testing CRM  —  Database Schema  (v2)
--- سازگار با Supabase (Postgres) و قابل مهاجرت به PostgreSQL مستقل
+-- PostgreSQL schema for Liara-managed databases.
 -- تمام تاریخ‌ها به صورت ISO (timestamptz / date) ذخیره می‌شوند
 -- تبدیل به تقویم شمسی فقط در لایه UI انجام می‌شود
 -- =====================================================================
-
-create extension if not exists "pgcrypto";
 
 -- ---------------------------------------------------------------------
 -- ADMINS
@@ -250,18 +248,3 @@ create trigger trg_province_region_map_updated before update on province_region_
   for each row execute function set_updated_at();
 
 -- ---------------------------------------------------------------------
--- Row Level Security — همه جداول فقط از طریق service_role (بک‌اند
--- Next.js) در دسترس‌اند؛ هیچ policy عمومی تعریف نشده.
--- ---------------------------------------------------------------------
-alter table admins         enable row level security;
-alter table companies      enable row level security;
-alter table test_records   enable row level security;
-alter table vessels        enable row level security;
-alter table notifications  enable row level security;
-alter table audit_logs     enable row level security;
-alter table login_attempts enable row level security;
-alter table test_history        enable row level security;
-alter table province_region_map enable row level security;
-alter table generated_certificates enable row level security;
-alter table certificate_history enable row level security;
-alter table reminder_claims enable row level security;

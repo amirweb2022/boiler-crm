@@ -1,45 +1,26 @@
-import { getSupabaseServerClient } from "./supabase/server";
-
-// =====================================================================
-// Rate Limiting برای ورود ادمین — چون Next.js روی محیط سرورلس معمولاً
-// چند اینستنس مستقل دارد، محدودسازی حافظه‌محور (in-memory) قابل‌اتکا
-// نیست؛ به‌جایش هر تلاش ورود (موفق/ناموفق) در جدول login_attempts ثبت
-// می‌شود و قبل از هر تلاش جدید، تعداد شکست‌های اخیر بررسی می‌گردد.
-// =====================================================================
+import { query } from "./db/postgres";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const WINDOW_MINUTES = 15;
 
-export async function isLoginRateLimited(phone: string, ip: string | null): Promise<boolean> {
-  const db = getSupabaseServerClient();
-  const windowStart = new Date(Date.now() - WINDOW_MINUTES * 60 * 1000).toISOString();
-
-  const { count, error } = await db
-    .from("login_attempts")
-    .select("id", { count: "exact", head: true })
-    .eq("phone", phone)
-    .eq("success", false)
-    .gte("created_at", windowStart);
-
-  if (error) {
-    // در صورت خطای دیتابیس، به‌صورت محتاطانه اجازه ورود می‌دهیم (fail-open)
-    // تا یک مشکل زیرساختی باعث قفل‌شدن کامل دسترسی ادمین‌ها نشود؛ اما
-    // خطا لاگ می‌شود تا بررسی شود.
-    console.error("خطا در بررسی rate limit:", error.message);
+export async function isLoginRateLimited(phone:string,_ip:string|null):Promise<boolean> {
+  try {
+    const windowStart=new Date(Date.now()-WINDOW_MINUTES*60*1000);
+    const {rows}=await query(`SELECT count(*)::text AS count FROM login_attempts WHERE phone=$1 AND success=false AND created_at >= $2`,[phone,windowStart]);
+    return Number(rows[0]?.count??0)>=MAX_FAILED_ATTEMPTS;
+  } catch(error:any) {
+    console.error("Failed to check login rate limit:",error.message);
     return false;
   }
-
-  return (count ?? 0) >= MAX_FAILED_ATTEMPTS;
 }
 
-export async function recordLoginAttempt(phone: string, ip: string | null, success: boolean) {
-  const db = getSupabaseServerClient();
-  await db.from("login_attempts").insert({ phone, ip_address: ip, success });
+export async function recordLoginAttempt(phone:string,ip:string|null,success:boolean):Promise<void> {
+  try { await query(`INSERT INTO login_attempts(phone,ip_address,success) VALUES($1,$2,$3)`,[phone,ip,success]); }
+  catch(error) { console.error("Failed to record login attempt:",error); }
 }
 
-export function getClientIp(req: Request): string | null {
-  // در Vercel/پروکسی‌های استاندارد این هدر ست می‌شود
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
+export function getClientIp(req:Request):string|null {
+  const forwarded=req.headers.get("x-forwarded-for");
+  if(forwarded)return forwarded.split(",")[0].trim();
   return req.headers.get("x-real-ip");
 }

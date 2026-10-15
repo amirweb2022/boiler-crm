@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServerClient } from "../../../../lib/supabase/server";
+import { query } from "../../../../lib/db/postgres";
 import { verifyPassword, createSession } from "../../../../lib/auth";
 import { loginSchema, parseOrThrow, ValidationError } from "../../../../lib/validation";
 import { isLoginRateLimited, recordLoginAttempt, getClientIp } from "../../../../lib/rate-limit";
@@ -20,13 +20,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const db = getSupabaseServerClient();
-    const { data: admin, error } = await db
-      .from("admins")
-      .select("*")
-      .eq("phone", phone)
-      .eq("is_active", true)
-      .single();
+    const { rows } = await query(`SELECT * FROM admins WHERE phone=$1 AND is_active=true LIMIT 1`, [phone]);
+    const admin = rows[0];
 
     // حتی اگر ادمین پیدا نشد هم verify روی یک هش ثابت اجرا می‌شود تا
     // زمان پاسخ برای «کاربر وجود ندارد» و «رمز اشتباه است» یکسان بماند
@@ -34,14 +29,14 @@ export async function POST(req: NextRequest) {
     const passwordHash = admin?.password_hash ?? "$2a$12$invalidsaltinvalidsaltinvalidsaltinvalidsa";
     const isValid = await verifyPassword(password, passwordHash);
 
-    if (error || !admin || !isValid) {
+    if (!admin || !isValid) {
       await recordLoginAttempt(phone, ip, false);
       return NextResponse.json({ error: "شماره موبایل یا رمزعبور نادرست است" }, { status: 401 });
     }
 
     await recordLoginAttempt(phone, ip, true);
     await createSession({ id: admin.id, phone: admin.phone });
-    await db.from("admins").update({ last_login_at: new Date().toISOString() }).eq("id", admin.id);
+    await query(`UPDATE admins SET last_login_at=now() WHERE id=$1`, [admin.id]);
     await logAudit({ adminId: admin.id, adminPhone: admin.phone, action: "admin.login", entityType: "admin", entityId: admin.id, ip });
 
     return NextResponse.json({

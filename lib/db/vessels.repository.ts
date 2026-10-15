@@ -1,163 +1,53 @@
-import { getSupabaseServerClient } from "../supabase/server";
+import { query } from "./postgres";
 import { daysUntil } from "../date/shamsi";
 import { ValidationError } from "../validation";
 import type { Vessel, CreateVesselInput, UpdateVesselInput } from "../../types";
 
-function mapVesselRow(row: any): Vessel {
-  return {
-    id: row.id,
-    companyId: row.company_id,
-    name: row.name,
-    volume: row.volume,
-    details: row.details ?? {},
-    tested: row.tested,
-    status: row.status,
-    exclusionReason: row.exclusion_reason,
-    excludedAt: row.excluded_at,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    type: row.type,
-  };
+function mapVessel(r:any): Vessel { return {id:r.id,companyId:r.company_id,name:r.name,volume:r.volume,details:r.details??{},tested:r.tested,status:r.status,exclusionReason:r.exclusion_reason,excludedAt:r.excluded_at,createdAt:r.created_at,updatedAt:r.updated_at,type:r.type}; }
+
+export async function createVessel(input:CreateVesselInput):Promise<Vessel> {
+  const company = await query(`SELECT id FROM companies WHERE id=$1`,[input.companyId]);
+  if (!company.rows[0]) throw new ValidationError("شرکت یافت نشد");
+  const {rows} = await query(`INSERT INTO vessels(company_id,name,volume,type,details) VALUES($1,$2,$3,$4,$5) RETURNING *`,[input.companyId,input.name??null,input.volume??null,input.type,JSON.stringify(input.details??{})]);
+  return mapVessel(rows[0]);
 }
 
-export async function createVessel(input: CreateVesselInput): Promise<Vessel> {
-  const db = getSupabaseServerClient();
-
-  const { data: company, error: companyError } = await db
-    .from("companies")
-    .select("id")
-    .eq("id", input.companyId)
-    .single();
-  if (companyError || !company) throw new ValidationError("شرکت یافت نشد");
-
-  const { data, error } = await db
-    .from("vessels")
-    .insert({
-      company_id: input.companyId,
-      name: input.name ?? null,
-      volume: input.volume ?? null,
-      type: input.type,
-      details: input.details ?? {},
-    })
-    .select()
-    .single();
-  if (error) throw error;
-
-  return mapVesselRow(data);
+export async function updateVessel(id:string,input:UpdateVesselInput):Promise<Vessel> {
+  const patch:Array<[string,unknown]> = [];
+  if (input.name) patch.push(["name",input.name]);
+  if (input.volume) patch.push(["volume",input.volume]);
+  if (input.type) patch.push(["type",input.type]);
+  if (input.type && input.type !== "tank" && input.type !== "boiler") { patch.push(["name",null]); patch.push(["volume",null]); }
+  if (input.details) patch.push(["details",JSON.stringify(input.details)]);
+  if (!patch.length) {
+    const found = await query(`SELECT * FROM vessels WHERE id=$1`,[id]);
+    if (!found.rows[0]) throw new ValidationError("مخزن یافت نشد");
+    return mapVessel(found.rows[0]);
+  }
+  const sets = patch.map(([key],i)=>`${key}=$${i+2}${key === "details" ? "::jsonb" : ""}`).join(",");
+  const {rows} = await query(`UPDATE vessels SET ${sets},updated_at=now() WHERE id=$1 RETURNING *`,[id,...patch.map(([,v])=>v)]);
+  if (!rows[0]) throw new ValidationError("مخزن یافت نشد");
+  return mapVessel(rows[0]);
 }
 
-export async function updateVessel(
-  id: string,
-  input: UpdateVesselInput,
-): Promise<Vessel> {
-  const db = getSupabaseServerClient();
-  const patch: Record<string, any> = {};
-  if (input.name) patch.name = input.name;
-  if (input.volume) patch.volume = input.volume;
-  if (input.type) patch.type = input.type;
-  if (input.type && input.type !== "tank" && input.type !== "boiler") {
-    patch.name = null;
-    patch.volume = null;
-  }
-  if (input.details) patch.details = input.details;
+export async function deleteVessel(id:string):Promise<void> { await query(`DELETE FROM vessels WHERE id=$1`,[id]); }
 
-  const { data, error } = await db
-    .from("vessels")
-    .update(patch)
-    .eq("id", id)
-    .select()
-    .single();
-  if (error) throw error;
-
-  return mapVesselRow(data);
+export async function toggleVesselTested(id:string,tested:boolean):Promise<Vessel> {
+  const {rows} = await query(`SELECT v.*,tr.test_date,tr.status AS test_status FROM vessels v JOIN test_records tr ON tr.company_id=v.company_id WHERE v.id=$1`,[id]);
+  const vessel=rows[0];
+  if (!vessel) throw new ValidationError("مخزن یافت نشد");
+  if (vessel.status === "excluded") throw new ValidationError("این مخزن از چرخه فعلی معاف شده است؛ ابتدا معافیت را لغو کنید");
+  if (vessel.test_status !== "pending") throw new ValidationError("این چرخه تست قبلاً بسته شده است");
+  if (daysUntil(vessel.test_date)>0) throw new ValidationError("تاریخ آزمون هنوز فرارسیده است؛ امکان تیک‌زدن وجود ندارد");
+  const updated=await query(`UPDATE vessels SET tested=$2,updated_at=now() WHERE id=$1 RETURNING *`,[id,tested]);
+  return mapVessel(updated.rows[0]);
 }
 
-export async function deleteVessel(id: string): Promise<void> {
-  const db = getSupabaseServerClient();
-  const { error } = await db.from("vessels").delete().eq("id", id);
-  if (error) throw error;
-}
-
-/**
- * تیک‌زدن/برداشتن تیک «تست‌شده» برای یک مخزن.
- * فقط وقتی تاریخ آزمون شرکت فرارسیده باشد مجاز است؛ مخزنِ معاف‌شده هم
- * اصلاً نباید قابل تیک‌زدن باشد (چون از چرخه مستثنی شده).
- */
-export async function toggleVesselTested(
-  id: string,
-  tested: boolean,
-): Promise<Vessel> {
-  const db = getSupabaseServerClient();
-
-  const { data: vessel, error: vesselError } = await db
-    .from("vessels")
-    .select("*, companies!inner(id, test_records(test_date, status))")
-    .eq("id", id)
-    .single();
-  if (vesselError || !vessel) throw new ValidationError("مخزن یافت نشد");
-
-  if (vessel.status === "excluded") {
-    throw new ValidationError(
-      "این مخزن از چرخه فعلی معاف شده است؛ ابتدا معافیت را لغو کنید",
-    );
-  }
-
-  const testRecord = Array.isArray(vessel.companies?.test_records)
-    ? vessel.companies.test_records[0]
-    : vessel.companies?.test_records;
-
-  if (!testRecord) {
-    throw new ValidationError("رکورد تست این شرکت یافت نشد");
-  }
-  if (testRecord.status !== "pending") {
-    throw new ValidationError("این چرخه تست قبلاً بسته شده است");
-  }
-  if (daysUntil(testRecord.test_date) > 0) {
-    throw new ValidationError(
-      "تاریخ آزمون هنوز فرانرسیده است؛ امکان تیک‌زدن وجود ندارد",
-    );
-  }
-
-  const { data, error } = await db
-    .from("vessels")
-    .update({ tested })
-    .eq("id", id)
-    .select()
-    .single();
-  if (error) throw error;
-
-  return mapVesselRow(data);
-}
-
-/**
- * معاف‌کردن یک مخزن از الزام «تست‌شدن» در همین چرخه (با دلیل اجباری،
- * برای audit trail)، یا لغو معافیت. این عملیات فقط برای admin مجاز است
- * (در route بررسی می‌شود). معافیت موقتی است — با «ثبت انجام» و شروع
- * چرخه بعد، خودکار به «active» برمی‌گردد (در companies.repository).
- */
-export async function setVesselExclusion(
-  id: string,
-  excluded: boolean,
-  reason?: string,
-): Promise<Vessel> {
-  const db = getSupabaseServerClient();
-
-  const patch = excluded
-    ? {
-        status: "excluded",
-        exclusion_reason: reason ?? null,
-        excluded_at: new Date().toISOString(),
-        tested: false,
-      }
-    : { status: "active", exclusion_reason: null, excluded_at: null };
-
-  const { data, error } = await db
-    .from("vessels")
-    .update(patch)
-    .eq("id", id)
-    .select()
-    .single();
-  if (error) throw error;
-
-  return mapVesselRow(data);
+export async function setVesselExclusion(id:string,excluded:boolean,reason?:string):Promise<Vessel> {
+  const {rows}=await query(excluded
+    ? `UPDATE vessels SET status='excluded',exclusion_reason=$2,excluded_at=now(),tested=false,updated_at=now() WHERE id=$1 RETURNING *`
+    : `UPDATE vessels SET status='active',exclusion_reason=null,excluded_at=null,updated_at=now() WHERE id=$1 RETURNING *`,
+  excluded?[id,reason??null]:[id]);
+  if (!rows[0]) throw new ValidationError("مخزن یافت نشد");
+  return mapVessel(rows[0]);
 }

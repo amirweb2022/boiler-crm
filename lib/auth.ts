@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { getSupabaseServerClient } from "./supabase/server";
+import { query } from "./db/postgres";
 import type { Admin } from "../types";
 
 const SESSION_COOKIE = "boiler_crm_session";
@@ -63,9 +63,9 @@ export async function requireAdmin(): Promise<Admin> {
   const session = await getSession();
   if (!session) throw new Error("UNAUTHORIZED");
 
-  const db = getSupabaseServerClient();
-  const { data, error } = await db.from("admins").select("*").eq("id", session.adminId).single();
-  if (error || !data || !data.is_active) throw new Error("UNAUTHORIZED");
+  const { rows } = await query(`SELECT * FROM admins WHERE id=$1`, [session.adminId]);
+  const data = rows[0];
+  if (!data || !data.is_active) throw new Error("UNAUTHORIZED");
 
   return {
     id: data.id,

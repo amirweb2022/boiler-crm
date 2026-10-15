@@ -18,7 +18,7 @@ const securityHeaders = [
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
-      "connect-src 'self' https://*.supabase.co",
+      "connect-src 'self'",
       "frame-ancestors 'none'",
     ].join("; "),
   },

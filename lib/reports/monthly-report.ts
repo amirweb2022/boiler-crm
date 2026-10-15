@@ -115,7 +115,7 @@ function groundingRows(entries: TestHistoryEntry[]): GroundingReportRow[] {
     });
 }
 
-function rowStyles(row: ExcelJS.Row, columnCount: number): ExcelJS.Style[] {
+function rowStyles(row: ExcelJS.Row, columnCount: number): Partial<ExcelJS.Style>[] {
   return Array.from({ length: columnCount }, (_, index) =>
     structuredClone(row.getCell(index + 1).style),
   );
@@ -204,7 +204,7 @@ export async function buildMonthlyReportWorkbook(jYear: number, jMonth: number):
     readFile(TEMPLATE_PATH),
   ]);
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(template);
+  await workbook.xlsx.load(template as unknown as Parameters<typeof workbook.xlsx.load>[0]);
 
   const period = `${SHAMSI_MONTH_NAMES[jMonth - 1]} ماه ${jYear}`;
   const pressureTitle = `گزارش خدمات مشاوران در زمینه ارزیابی ایمنی ظروف تحت فشار ${period}`;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, ForbiddenError } from "../../../../../lib/auth";
-import { getSupabaseServerClient } from "../../../../../lib/supabase/server";
+import { query } from "../../../../../lib/db/postgres";
+import { uploadCertificate } from "../../../../../lib/storage/certificates";
 import { getSmsProvider } from "../../../../../lib/sms";
 import { uuidSchema, parseOrThrow, ValidationError } from "../../../../../lib/validation";
 import { logAudit } from "../../../../../lib/audit";
@@ -16,8 +17,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   try {
     const admin = await requireRole("admin");
     const companyId = parseOrThrow(uuidSchema, params.id);
-    const db = getSupabaseServerClient();
-
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     if (!file) return NextResponse.json({ error: "فایلی ارسال نشده است" }, { status: 400 });
@@ -30,21 +29,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: "حجم فایل نباید بیشتر از ۵ مگابایت باشد" }, { status: 400 });
     }
 
-    const { data: company, error: companyError } = await db
-      .from("companies")
-      .select("*, test_records(*), vessels(id, tested, status)")
-      .eq("id", companyId)
-      .single();
-    if (companyError || !company) {
+    const { rows: companyRows } = await query(`SELECT c.*,tr.id AS test_record_id,tr.test_date,tr.cycle_count,tr.certificate_uploaded,tr.certificate_url,tr.certificate_path,tr.status AS test_status FROM companies c LEFT JOIN test_records tr ON tr.company_id=c.id WHERE c.id=$1`, [companyId]);
+    const company = companyRows[0];
+    if (!company) {
       return NextResponse.json({ error: "شرکت یافت نشد" }, { status: 404 });
     }
 
-    const testRecord = Array.isArray(company.test_records) ? company.test_records[0] : company.test_records;
+    const testRecord = company.test_record_id ? { id:company.test_record_id,test_date:company.test_date,cycle_count:company.cycle_count,certificate_uploaded:company.certificate_uploaded,certificate_url:company.certificate_url,certificate_path:company.certificate_path,status:company.test_status } : null;
     if (!testRecord) {
       return NextResponse.json({ error: "رکورد تست یافت نشد" }, { status: 404 });
     }
 
-    const vessels = company.vessels ?? [];
+    const { rows: vessels } = await query(`SELECT id,tested,status FROM vessels WHERE company_id=$1`,[companyId]);
     const allTested = vessels.length > 0 && vessels.every((v: any) => v.status === "excluded" || v.tested);
     if (!allTested) {
       return NextResponse.json(
@@ -55,50 +51,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // نام فایل با UUID تصادفی بازسازی می‌شود (نه نام اصلی فایل کاربر) تا
     // از path traversal یا کاراکترهای غیرمنتظره در نام فایل جلوگیری شود
-    const ext = (file.name.split(".").pop() || "bin").replace(/[^a-zA-Z0-9]/g, "").slice(0, 10);
-    const path = `${companyId}/${crypto.randomUUID()}.${ext}`;
-
     const arrayBuffer = await file.arrayBuffer();
-    const { error: uploadError } = await db.storage
-      .from("certificates")
-      .upload(path, Buffer.from(arrayBuffer), { contentType: file.type, upsert: false });
-    if (uploadError) throw uploadError;
-
-    const { data: publicUrl } = db.storage.from("certificates").getPublicUrl(path);
-
-    const { data: updated, error: updateError } = await db
-      .from("test_records")
-      .update({
-        certificate_uploaded: true,
-        certificate_url: publicUrl.publicUrl,
-        certificate_path: path,
-        certificate_cycle_count: (testRecord.cycle_count ?? 0) + 1,
-        proof_of_upload_pending: false,
-      })
-      .eq("id", testRecord.id)
-      .select()
-      .single();
-    if (updateError) throw updateError;
+    const { path } = await uploadCertificate(Buffer.from(arrayBuffer),file.type,file.name);
+    const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin}/api/certificates/${path.split("/").map(encodeURIComponent).join("/")}`;
+    const { rows: updatedRows } = await query(`UPDATE test_records SET certificate_uploaded=true,certificate_url=$2,certificate_path=$3,certificate_cycle_count=$4,proof_of_upload_pending=false,updated_at=now() WHERE id=$1 RETURNING *`,[testRecord.id,publicUrl,path,(testRecord.cycle_count??0)+1]);
+    const updated = updatedRows[0];
 
     const sms = getSmsProvider();
-    const message = `گواهی آزمون دیگ بخار شرکت ${company.name} صادر شد.\nلینک دانلود: ${publicUrl.publicUrl}`;
+    const message = `گواهی آزمون دیگ بخار شرکت ${company.name} صادر شد.\nلینک دانلود: ${publicUrl}`;
     const smsResult = await sms.send({ phone: company.phone, message });
 
-    const { error: notificationError } = await db.from("notifications").insert({
-      company_id: company.id,
-      test_record_id: testRecord.id,
-      phone: company.phone,
-      message,
-      type: "certificate_ready",
-      status: smsResult.success ? "sent" : "failed",
-      provider_ref: smsResult.providerRef ?? null,
-      sent_at: smsResult.success ? new Date().toISOString() : null,
-    });
-    if (notificationError) {
-      console.error("Certificate SMS notification insert failed", {
-        code: notificationError.code,
-      });
-    }
+    try { await query(`INSERT INTO notifications(company_id,test_record_id,phone,message,type,status,provider_ref,sent_at) VALUES($1,$2,$3,$4,'certificate_ready',$5,$6,$7)`,[company.id,testRecord.id,company.phone,message,smsResult.success?'sent':'failed',smsResult.providerRef??null,smsResult.success?new Date():null]); }
+    catch(error) { console.error("Certificate SMS notification insert failed",error); }
 
     await logAudit({
       adminId: admin.id,
