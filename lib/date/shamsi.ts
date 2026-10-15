@@ -1,16 +1,23 @@
 // =====================================================================
 // لایه انتزاعی تاریخ — تمام ذخیره‌سازی به میلادی (ISO) است.
-// وابستگی: dayjs + jalaliday   (npm i dayjs jalaliday)
+// تبدیل تقویم با react-date-object، هماهنگ با تقویم فرم‌ها.
 // =====================================================================
-import dayjs from "dayjs";
-import jalaliday from "jalaliday";
+import DateObject from "react-date-object";
+import persian from "react-date-object/calendars/persian";
+import gregorian from "react-date-object/calendars/gregorian";
+import { calendarDaysUntil, getTehranClock } from "../sms/reminder-policy";
 
-dayjs.extend(jalaliday);
+export function persianDate(isoDate: string) {
+  return new DateObject({ date: isoDate, format: "YYYY-MM-DD", calendar: gregorian }).convert(persian);
+}
 
 /** تبدیل timestamptz میلادی به تاریخ+ساعت شمسی (برای صفحه تاریخچه) */
 export function toShamsiDateTime(isoDateTime: string | null | undefined): string {
   if (!isoDateTime) return "—";
-  return dayjs(isoDateTime).calendar("jalali").locale("fa").format("YYYY/MM/DD HH:mm");
+  const instant = new Date(isoDateTime);
+  const { date } = getTehranClock(instant);
+  const time = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tehran", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(instant);
+  return `${toShamsiDisplay(date)} ${time}`;
 }
 
 export const SHAMSI_MONTH_NAMES = [
@@ -20,8 +27,8 @@ export const SHAMSI_MONTH_NAMES = [
 
 /** ماه/سال شمسیِ امروز */
 export function getCurrentShamsiYearMonth(): { jYear: number; jMonth: number } {
-  const now = dayjs().calendar("jalali");
-  return { jYear: now.year(), jMonth: now.month() + 1 };
+  const now = persianDate(getTehranClock().date);
+  return { jYear: now.year, jMonth: now.month.number };
 }
 
 /**
@@ -41,7 +48,7 @@ export function shamsiMonthLabel(jYear: number, jMonth: number): string {
 /** تبدیل تاریخ میلادی ISO ("YYYY-MM-DD") به رشته نمایشی شمسی */
 export function toShamsiDisplay(isoDate: string | null | undefined): string {
   if (!isoDate) return "—";
-  return dayjs(isoDate).calendar("jalali").locale("fa").format("YYYY/MM/DD");
+  return persianDate(isoDate).format("YYYY/MM/DD");
 }
 
 /**
@@ -60,13 +67,15 @@ export function dateObjectToISO(dateObject: { toDate: () => Date }): string {
 
 /** محاسبه سررسید سال بعد: همان روز/ماه شمسی، یک سال بعد */
 export function nextYearShamsi(isoDate: string): string {
-  const next = dayjs(isoDate).calendar("jalali").add(1, "year");
-  return next.calendar("gregory").format("YYYY-MM-DD");
+  const current = persianDate(isoDate);
+  const next = new DateObject({ year: current.year + 1, month: current.month.number, day: 1, calendar: persian });
+  next.setDay(Math.min(current.day, next.month.length));
+  return next.convert(gregorian).format("YYYY-MM-DD");
 }
 
 /** فاصله‌ی امروز تا تاریخ تست بر حسب روز */
 export function daysUntil(isoDate: string): number {
-  return dayjs(isoDate).startOf("day").diff(dayjs().startOf("day"), "day");
+  return calendarDaysUntil(isoDate, getTehranClock().date);
 }
 
 export type TestProximityThresholds = { nearDueDays: number };

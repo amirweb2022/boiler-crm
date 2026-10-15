@@ -1,4 +1,7 @@
-import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from "pg";
+import { Pool, types, type PoolClient, type QueryResult, type QueryResultRow } from "pg";
+
+// A PostgreSQL date is a calendar day, not a timestamp. Preserve its ISO form.
+types.setTypeParser(1082, (value: string) => value);
 
 declare global {
   // eslint-disable-next-line no-var

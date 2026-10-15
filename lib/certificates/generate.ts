@@ -1,4 +1,4 @@
-import puppeteer from "puppeteer";
+import { launchCertificateBrowser } from "./browser";
 import fs from "fs";
 import path from "path";
 import {
@@ -95,12 +95,7 @@ export async function generateCertificatePdf(
   input: GenerateCertificateInput,
 ): Promise<Buffer> {
   const html = buildHtml(input);
-  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH ?? puppeteer.executablePath();
-  if (!fs.existsSync(executablePath)) throw new Error("Puppeteer Chrome was not found.");
-  const browser = await puppeteer.launch({
-    executablePath,
-    headless: true,
-  });
+  const browser = await launchCertificateBrowser();
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "load" });

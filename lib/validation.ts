@@ -18,7 +18,11 @@ export const uuidSchema = z.string().uuid("شناسه نامعتبر است");
 
 export const isoDateSchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "فرمت تاریخ نامعتبر است");
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "فرمت تاریخ نامعتبر است")
+  .refine((value) => {
+    const parsed = new Date(`${value}T00:00:00Z`);
+    return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  }, "تاریخ نامعتبر است");
 
 export const loginSchema = z.object({
   phone: phoneSchema,

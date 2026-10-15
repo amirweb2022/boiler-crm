@@ -9,8 +9,8 @@ const mapTestRecord = (r: any): TestRecord => ({ id:r.id, companyId:r.company_id
 const mapVessel = (r: any): Vessel => ({ id:r.id, companyId:r.company_id, name:r.name, volume:r.volume, details:r.details ?? {}, tested:r.tested, status:r.status, exclusionReason:r.exclusion_reason, excludedAt:r.excluded_at, createdAt:r.created_at, updatedAt:r.updated_at, type:r.type });
 
 export async function listCompaniesWithDetails(filters: CompanyListFilters): Promise<PaginatedResult<CompanyWithDetails>> {
-  const page = filters.page ?? 1;
-  const pageSize = Math.min(filters.pageSize ?? 20, 100);
+  const page = Math.max(1, Math.floor(filters.page ?? 1) || 1);
+  const pageSize = Math.max(1, Math.min(Math.floor(filters.pageSize ?? 20) || 20, 100));
   const values: unknown[] = [];
   const where: string[] = [];
   if (filters.search) {
@@ -18,6 +18,22 @@ export async function listCompaniesWithDetails(filters: CompanyListFilters): Pro
     where.push(`(name ILIKE $${values.length} ESCAPE '\\' OR catalog_code ILIKE $${values.length} ESCAPE '\\' OR phone ILIKE $${values.length} ESCAPE '\\')`);
   }
   if (filters.province && filters.province !== "all") { values.push(filters.province); where.push(`province = $${values.length}`); }
+  if (filters.status && filters.status !== "all") {
+    values.push(filters.status);
+    where.push(`EXISTS (SELECT 1 FROM test_records tr WHERE tr.company_id=companies.id AND tr.status=$${values.length})`);
+  }
+  if (filters.proximity && filters.proximity !== "all") {
+    const today = "(now() AT TIME ZONE 'Asia/Tehran')::date";
+    const conditions: Record<string, string> = {
+      done: "tr.status='done'",
+      overdue: `tr.status='pending' AND tr.test_date < ${today}`,
+      due: `tr.status='pending' AND tr.test_date BETWEEN ${today} AND ${today}+1`,
+      near_due: `tr.status='pending' AND tr.test_date BETWEEN ${today}+2 AND ${today}+30`,
+      unscheduled: `tr.status='pending' AND tr.test_date > ${today}+30`,
+    };
+    const condition = conditions[filters.proximity];
+    if (condition) where.push(`EXISTS (SELECT 1 FROM test_records tr WHERE tr.company_id=companies.id AND (${condition}))`);
+  }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const filterValues = values.slice();
   values.push(pageSize, (page - 1) * pageSize);
@@ -49,7 +65,7 @@ export async function listCompaniesWithDetails(filters: CompanyListFilters): Pro
       (tr?.certificate_cycle_count === (tr?.cycle_count ?? 0)+1 || (tr?.certificate_cycle_count == null && tr?.cycle_count === 0));
     const companyRow = company;
     return { ...mapCompany(companyRow), testRecord, certificateHistory: (tr?.certificate_history ?? []).map((h:any) => ({cycleCount:h.cycle_count,testDate:h.test_date,certificateUrl:h.certificate_url})), vessels: equipment, proximity, allVesselsTested, canMarkDone };
-  }).filter((c) => (!filters.status || filters.status === "all" || c.testRecord?.status === filters.status) && (!filters.proximity || filters.proximity === "all" || c.proximity === filters.proximity));
+  });
   return { data, total, page, pageSize };
 }
 
@@ -110,7 +126,8 @@ export async function markTestDoneAndStartNextCycle(companyId: string): Promise<
     for (const vessel of vessels.filter((v:any)=>v.tested && v.status !== "excluded")) {
       await db.query(`INSERT INTO test_history(company_id,company_name,company_catalog_code,company_province,company_city,company_phone,company_address,vessel_id,vessel_name,vessel_volume,vessel_type,vessel_details,test_date,result,cycle_count) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'approved',$14)`, [company.id,company.name,company.catalog_code,company.province,company.city,company.phone,company.address,vessel.id,vessel.name,vessel.volume,vessel.type,vessel.details,current.test_date,cycleCount]);
     }
-    const nextDate = nextYearShamsi(String(current.test_date).slice(0,10));
+    const currentDate = current.test_date instanceof Date ? `${current.test_date.getFullYear()}-${String(current.test_date.getMonth()+1).padStart(2,"0")}-${String(current.test_date.getDate()).padStart(2,"0")}` : String(current.test_date).slice(0,10);
+    const nextDate = nextYearShamsi(currentDate);
     const { rows: updatedRows } = await db.query(`UPDATE test_records SET test_date=$2,status='pending',certificate_uploaded=false,certificate_url=null,certificate_path=null,certificate_cycle_count=null,proof_of_upload_pending=false,done_at=now(),cycle_count=$3,updated_at=now() WHERE id=$1 RETURNING *`, [current.id,nextDate,cycleCount]);
     await db.query(`UPDATE vessels SET tested=false,status='active',exclusion_reason=null,excluded_at=null,updated_at=now() WHERE company_id=$1`, [companyId]);
     return {testRecord:mapTestRecord(updatedRows[0])};

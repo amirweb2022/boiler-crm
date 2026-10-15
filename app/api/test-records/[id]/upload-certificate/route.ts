@@ -6,6 +6,8 @@ import { getSmsProvider } from "../../../../../lib/sms";
 import { uuidSchema, parseOrThrow, ValidationError } from "../../../../../lib/validation";
 import { logAudit } from "../../../../../lib/audit";
 import { getClientIp } from "../../../../../lib/rate-limit";
+import { daysUntil } from "../../../../../lib/date/shamsi";
+import { certificateUploadPdf } from "../../../../../lib/certificates/upload-pdf";
 
 const ALLOWED_MIME_TYPES = ["application/pdf", "image/jpeg", "image/png"];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
@@ -19,6 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const companyId = parseOrThrow(uuidSchema, params.id);
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
+    if (file && typeof file.arrayBuffer !== "function") throw new ValidationError("فایل گواهی نامعتبر است");
     if (!file) return NextResponse.json({ error: "فایلی ارسال نشده است" }, { status: 400 });
 
     // اعتبارسنجی نوع و حجم فایل — جلوگیری از آپلود فایل‌های اجرایی/مخرب
@@ -40,6 +43,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: "رکورد تست یافت نشد" }, { status: 404 });
     }
 
+    if (testRecord.status !== "pending" || daysUntil(testRecord.test_date) > 0) {
+      throw new ValidationError("بارگذاری گواهی فقط پس از سررسید و در چرخه جاری مجاز است");
+    }
     const { rows: vessels } = await query(`SELECT id,tested,status FROM vessels WHERE company_id=$1`,[companyId]);
     const allTested = vessels.length > 0 && vessels.every((v: any) => v.status === "excluded" || v.tested);
     if (!allTested) {
@@ -52,8 +58,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     // نام فایل با UUID تصادفی بازسازی می‌شود (نه نام اصلی فایل کاربر) تا
     // از path traversal یا کاراکترهای غیرمنتظره در نام فایل جلوگیری شود
     const arrayBuffer = await file.arrayBuffer();
-    const { path } = await uploadCertificate(Buffer.from(arrayBuffer),file.type,file.name);
-    const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin}/api/certificates/${path.split("/").map(encodeURIComponent).join("/")}`;
+    const pdf = await certificateUploadPdf(Buffer.from(arrayBuffer), file.type);
+    const { path } = await uploadCertificate(pdf, "application/pdf", "certificate.pdf");
+    const publicUrl = `${(process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin).replace(/\/$/, "")}/certificates/${encodeURIComponent(path.split("/").pop()!)}`;
     const { rows: updatedRows } = await query(`UPDATE test_records SET certificate_uploaded=true,certificate_url=$2,certificate_path=$3,certificate_cycle_count=$4,proof_of_upload_pending=false,updated_at=now() WHERE id=$1 RETURNING *`,[testRecord.id,publicUrl,path,(testRecord.cycle_count??0)+1]);
     const updated = updatedRows[0];
 

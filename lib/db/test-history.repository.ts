@@ -1,16 +1,17 @@
-import dayjs from "dayjs";
-import jalaliday from "jalaliday";
+import DateObject from "react-date-object";
+import persian from "react-date-object/calendars/persian";
+import gregorian from "react-date-object/calendars/gregorian";
+import { persianDate } from "../date/shamsi";
 import { query } from "./postgres";
 import type { TestHistoryEntry } from "../../types";
 
-dayjs.extend(jalaliday);
 
 function mapHistoryRow(row:any):TestHistoryEntry { return {id:row.id,companyId:row.company_id,companyName:row.company_name,companyCatalogCode:row.company_catalog_code,companyProvince:row.company_province,companyCity:row.company_city,companyPhone:row.company_phone,companyAddress:row.company_address,vesselId:row.vessel_id,vesselName:row.vessel_name,vesselVolume:row.vessel_volume,vesselType:row.vessel_type??null,vesselDetails:row.vessel_details??{},testDate:row.test_date,result:row.result,cycleCount:row.cycle_count,createdAt:row.created_at}; }
 
 export function shamsiMonthToGregorianRange(jYear:number,jMonth:number):{startISO:string;endISO:string} {
-  const start=dayjs().calendar("jalali").year(jYear).month(jMonth-1).date(1).startOf("day");
-  const end=start.add(1,"month").subtract(1,"day");
-  return {startISO:start.calendar("gregory").format("YYYY-MM-DD"),endISO:end.calendar("gregory").format("YYYY-MM-DD")};
+  const start = new DateObject({ year: jYear, month: jMonth, day: 1, calendar: persian });
+  const end = new DateObject(start).toLastOfMonth();
+  return {startISO:start.convert(gregorian).format("YYYY-MM-DD"),endISO:end.convert(gregorian).format("YYYY-MM-DD")};
 }
 
 export async function listTestHistoryForShamsiMonth(jYear:number,jMonth:number):Promise<TestHistoryEntry[]> {
@@ -23,7 +24,7 @@ export async function listAvailableHistoryMonths():Promise<Array<{jYear:number;j
   const {rows}=await query(`SELECT DISTINCT test_date FROM test_history ORDER BY test_date DESC`);
   const seen=new Set<string>();
   const months:Array<{jYear:number;jMonth:number}>=[];
-  for (const row of rows) { const d=dayjs(row.test_date).calendar("jalali"); const key=`${d.year()}-${d.month()}`; if (!seen.has(key)) {seen.add(key);months.push({jYear:d.year(),jMonth:d.month()+1});} }
+  for (const row of rows) { const d=persianDate(row.test_date); const key=`${d.year}-${d.month.number}`; if (!seen.has(key)) {seen.add(key);months.push({jYear:d.year,jMonth:d.month.number});} }
   months.sort((a,b)=>a.jYear!==b.jYear?b.jYear-a.jYear:b.jMonth-a.jMonth);
   return months;
 }

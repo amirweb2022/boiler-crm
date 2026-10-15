@@ -5,6 +5,7 @@ import { logAudit } from "../../../../../lib/audit";
 import { getSmsProvider } from "../../../../../lib/sms";
 import { calendarDaysUntil, getTehranClock, isReminderSendTime } from "../../../../../lib/sms/reminder-policy";
 import { query } from "../../../../../lib/db/postgres";
+import { parseOrThrow, uuidSchema, ValidationError } from "../../../../../lib/validation";
 
 export async function POST(
   request: Request,
@@ -12,12 +13,13 @@ export async function POST(
 ) {
   try {
     const admin = await requireRole("admin");
+    const testRecordId = parseOrThrow(uuidSchema, params.testRecordId);
     const now = new Date();
     if (!isReminderSendTime(now)) {
       return NextResponse.json({ error: "ارسال پیامک فقط از ساعت ۰۸:۰۰ تا پیش از ۲۲:۰۰ به وقت تهران امکان‌پذیر است" }, { status: 403 });
     }
 
-    const { rows } = await query(`SELECT tr.id,tr.test_date,tr.status,c.id AS company_id,c.name,c.phone,c.status AS company_status FROM test_records tr JOIN companies c ON c.id=tr.company_id WHERE tr.id=$1`, [params.testRecordId]);
+    const { rows } = await query(`SELECT tr.id,tr.test_date,tr.status,c.id AS company_id,c.name,c.phone,c.status AS company_status FROM test_records tr JOIN companies c ON c.id=tr.company_id WHERE tr.id=$1`, [testRecordId]);
     const record = rows[0];
     if (!record || record.status !== "pending") {
       return NextResponse.json({ error: "این شرکت در چرخه آزمون جاری واجد شرایط یادآوری نیست" }, { status: 404 });
@@ -65,6 +67,7 @@ export async function POST(
       providerRef: result.providerRef,
     }, { status: result.success ? 200 : 502 });
   } catch (error: any) {
+    if (error instanceof ValidationError) return NextResponse.json({ error: error.message }, { status: 400 });
     if (error.message === "UNAUTHORIZED") {
       return NextResponse.json({ error: "احراز هویت نشده‌اید" }, { status: 401 });
     }

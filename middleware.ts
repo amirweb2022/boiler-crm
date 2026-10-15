@@ -5,6 +5,9 @@ const PUBLIC_PATHS = ["/login", "/api/auth/login"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  if (/^\/certificates\/[^/]+$/.test(pathname) || /^\/api\/certificates\/certificates\/[^/]+$/.test(pathname) || pathname === "/api/cron/clear-stale-certificates") {
+    return NextResponse.next();
+  }
 
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p)) || pathname.startsWith("/_next")) {
     return NextResponse.next();

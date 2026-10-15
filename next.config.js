@@ -31,7 +31,18 @@ const nextConfig = {
     },
   },
   async headers() {
-    return [{ source: "/(.*)", headers: securityHeaders }];
+    return [
+      { source: "/(.*)", headers: securityHeaders },
+      {
+        source: "/api/certificates/certificates/:file",
+        headers: securityHeaders.map((header) => {
+          if (header.key === "X-Frame-Options") return { ...header, value: "SAMEORIGIN" };
+          if (header.key === "Content-Security-Policy") return { ...header, value: header.value.replace("frame-ancestors 'none'", "frame-ancestors 'self'") };
+          if (header.key === "Referrer-Policy") return { ...header, value: "no-referrer" };
+          return header;
+        }),
+      },
+    ];
   },
 };
 

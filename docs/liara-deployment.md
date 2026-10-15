@@ -6,7 +6,7 @@ The production application uses Liara Next.js hosting, Liara managed PostgreSQL,
 
 1. Create a PostgreSQL database in Liara and copy its connection string into the app's server environment as `DATABASE_URL`.
 2. Run `database/schema.sql` against the new database using `psql` or Liara's database console.
-3. Create a publicly readable Object Storage bucket named `certificates` to preserve the existing public-link behavior. Configure its S3 endpoint, bucket credentials, and public URL base using the `LIARA_OBJECT_STORAGE_*` variables in `.env.example`.
+3. Create a private Object Storage bucket and configure its S3 endpoint, bucket name, and credentials using the `LIARA_OBJECT_STORAGE_*` variables in `.env.example`. Certificate share pages stream the file through the app; no public storage domain is needed.
 4. Keep the database URL and storage credentials server-side. Never use `NEXT_PUBLIC_` for these values.
 
 The schema is a complete fresh-install schema. Do not apply the former Supabase migrations; Supabase-specific RLS and Storage statements have been removed.
@@ -15,12 +15,12 @@ The schema is a complete fresh-install schema. Do not apply the former Supabase 
 
 Set these variables in Liara's app settings:
 
-- `DATABASE_URL`; optionally `DATABASE_SSL` and `DATABASE_SSL_REJECT_UNAUTHORIZED` according to the connection settings Liara provides.
-- `LIARA_OBJECT_STORAGE_ENDPOINT`, `LIARA_OBJECT_STORAGE_REGION`, `LIARA_OBJECT_STORAGE_BUCKET`, `LIARA_OBJECT_STORAGE_ACCESS_KEY`, `LIARA_OBJECT_STORAGE_SECRET_KEY`, and `LIARA_OBJECT_STORAGE_PUBLIC_BASE_URL`.
+- `DATABASE_URL` for the non-TLS PostgreSQL service.
+- `LIARA_OBJECT_STORAGE_ENDPOINT`, `LIARA_OBJECT_STORAGE_REGION`, `LIARA_OBJECT_STORAGE_BUCKET`, `LIARA_OBJECT_STORAGE_ACCESS_KEY`, and `LIARA_OBJECT_STORAGE_SECRET_KEY`.
 - `SESSION_SECRET`, `NEXT_PUBLIC_APP_URL`, `SMS_PROVIDER`, and the relevant Kavenegar and report settings.
 - `CRON_SECRET` and `CERTIFICATE_CLEAR_NEAR_DUE_DAYS`.
 
-Deploy the repository as a Liara Next.js app. The app uses the Puppeteer-managed Chrome binary by default; set `PUPPETEER_EXECUTABLE_PATH` only if the Liara runtime uses a different binary path. Generated certificates require Chrome and its Linux runtime libraries to be available in the app container.
+Deploy the repository as a Liara Next.js app. Generated certificates and image-to-PDF uploads require Puppeteer's managed Chrome (or installed Google Chrome) and its runtime libraries in the app container. Set `NEXT_PUBLIC_APP_URL` to the public HTTPS application origin so SMS links open the deployed certificate viewer.
 
 After deployment, create the initial administrator by running `scripts/create-admin.ts` with `DATABASE_URL` configured. The database starts empty.
 

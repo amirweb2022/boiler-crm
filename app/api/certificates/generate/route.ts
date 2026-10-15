@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     const { rows } = await query(`SELECT v.*,c.id AS company_id,c.name AS company_name,c.address AS company_address,tr.test_date FROM vessels v JOIN companies c ON c.id=v.company_id LEFT JOIN test_records tr ON tr.company_id=c.id WHERE v.id=$1`, [body.vesselId]);
     const vessel = rows[0];
     if (!vessel) throw new ValidationError("مخزن یافت نشد");
+    if (vessel.status === "excluded") throw new ValidationError("تولید گواهی برای دستگاه معاف از چرخه مجاز نیست");
 
     if (vessel.type !== "tank" && vessel.type !== "boiler") {
       throw new ValidationError("تولید گواهی فقط برای مخزن و دیگ بخار در دسترس است");
