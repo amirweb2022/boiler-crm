@@ -17,6 +17,8 @@ import AddEditCompanyModal from "./AddEditCompanyModal";
 import AddEditVesselModal from "./AddEditVesselModal";
 import CertificateUploadModal from "./CertificateUploadModal";
 import CertificateGenerateModal from "./CertificateGenerateModal";
+import { useToast } from "./Toast";
+import { Spinner } from "./ui";
 function getVesselTitle(vessel: Vessel): string {
   const details = vessel.details as Record<string, unknown>;
   if (vessel.type === "lift") return `بالابر — ${String(details.liftType ?? "")}`;
@@ -56,6 +58,7 @@ const PROVINCES = [
 ];
 
 export default function CompanyAccordion() {
+  const { showToast } = useToast();
   const [rows, setRows] = useState<CompanyWithDetails[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -122,8 +125,8 @@ export default function CompanyAccordion() {
 
   async function handleDeleteCompany(company: CompanyWithDetails) {
     if (!confirm(`حذف شرکت «${company.name}» قطعی است؟`)) return;
-    await fetch(`/api/companies/${company.id}`, { method: "DELETE" });
-    fetchData();
+    setBusyAction(`delete-company:${company.id}`);
+    try { const response = await fetch(`/api/companies/${company.id}`, { method: "DELETE" }); if (!response.ok) { const json = await response.json().catch(() => ({})); showToast({ tone: "error", title: "حذف شرکت ناموفق بود", description: json.error }); return; } showToast({ tone: "success", title: "شرکت حذف شد" }); await fetchData(); } finally { setBusyAction(null); }
   }
 
   async function handleMarkDone(company: CompanyWithDetails) {
@@ -140,10 +143,11 @@ export default function CompanyAccordion() {
       });
       const json = await res.json();
       if (!res.ok) {
-        alert(json.error ?? "خطا در ثبت انجام تست");
+        showToast({ tone: "error", title: "ثبت انجام آزمون ناموفق بود", description: json.error });
         return;
       }
-      fetchData();
+      showToast({ tone: "success", title: "آزمون شرکت ثبت شد" });
+      await fetchData();
     } finally {
       setBusyAction(null);
     }
@@ -159,7 +163,7 @@ export default function CompanyAccordion() {
       });
       const json = await res.json();
       if (!res.ok) {
-        alert(json.error ?? "خطا در تغییر وضعیت مخزن");
+        showToast({ tone: "error", title: "تغییر وضعیت آزمون ناموفق بود", description: json.error });
         return;
       }
       fetchData();
@@ -180,7 +184,7 @@ export default function CompanyAccordion() {
     );
     if (reason === null) return; // انصراف
     if (reason.trim().length < 5) {
-      alert("دلیل باید حداقل ۵ کاراکتر باشد");
+      showToast({ tone: "error", title: "دلیل معافیت کوتاه است", description: "دلیل باید حداقل ۵ کاراکتر باشد." });
       return;
     }
     setBusyVesselId(vessel.id);
@@ -192,7 +196,7 @@ export default function CompanyAccordion() {
       });
       const json = await res.json();
       if (!res.ok) {
-        alert(json.error ?? "خطا در ثبت معافیت");
+        showToast({ tone: "error", title: "ثبت معافیت ناموفق بود", description: json.error });
         return;
       }
       fetchData();
@@ -213,7 +217,7 @@ export default function CompanyAccordion() {
       });
       const json = await res.json();
       if (!res.ok) {
-        alert(json.error ?? "خطا در لغو معافیت");
+        showToast({ tone: "error", title: "لغو معافیت ناموفق بود", description: json.error });
         return;
       }
       fetchData();
@@ -237,8 +241,7 @@ export default function CompanyAccordion() {
             setSearch(e.target.value);
           }}
         />
-        <select
-          className="input w-auto"
+        <select className="select-modern input w-auto"
           value={province}
           onChange={(e) => {
             setPage(1);
@@ -252,8 +255,7 @@ export default function CompanyAccordion() {
             </option>
           ))}
         </select>
-        <select
-          className="input w-auto"
+        <select className="select-modern input w-auto"
           value={status}
           onChange={(e) => {
             setPage(1);
@@ -264,8 +266,7 @@ export default function CompanyAccordion() {
           <option value="pending">در انتظار</option>
           <option value="done">انجام‌شده</option>
         </select>
-        <select
-          className="input w-auto"
+        <select className="select-modern input w-auto"
           value={proximity}
           onChange={(e) => {
             setPage(1);
@@ -359,9 +360,10 @@ export default function CompanyAccordion() {
                           </button>
                           <button
                             onClick={() => handleDeleteCompany(c)}
+                            disabled={busyAction === `delete-company:${c.id}`}
                             className="text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                           >
-                            حذف شرکت
+                            {busyAction === `delete-company:${c.id}` ? <span className="inline-flex items-center gap-1"><Spinner className="h-3 w-3" /> در حال حذف...</span> : "حذف شرکت"}
                           </button>
                         </div>
                       )}
@@ -539,7 +541,7 @@ export default function CompanyAccordion() {
                               : ""
                           }
                         >
-                          ثبت انجام (شروع چرخه بعد)
+                          {busyAction === c.id ? <span className="inline-flex items-center gap-2"><Spinner className="h-4 w-4" /> در حال ثبت...</span> : "ثبت انجام (شروع چرخه بعد)"}
                         </button>
                         <button
                           disabled={!c.allVesselsTested || !dateReached}

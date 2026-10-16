@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useToast } from "./Toast";
+import { Spinner } from "./ui";
 
 interface MonthInfo {
   jYear: number;
@@ -9,6 +11,7 @@ interface MonthInfo {
 }
 
 export default function MonthlyReports() {
+  const { showToast } = useToast();
   const [myRole, setMyRole] = useState<"admin" | "tester" | null | "loading">("loading");
   const [lastMonth, setLastMonth] = useState<MonthInfo | null>(null);
   const [availableMonths, setAvailableMonths] = useState<MonthInfo[]>([]);
@@ -42,7 +45,7 @@ export default function MonthlyReports() {
       const res = await fetch(`/api/reports/download?jYear=${jYear}&jMonth=${jMonth}`);
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        alert(json.error ?? "خطا در ساخت گزارش");
+        showToast({ tone: "error", title: "ساخت گزارش ناموفق بود", description: json.error });
         return;
       }
       const blob = await res.blob();
@@ -84,7 +87,7 @@ export default function MonthlyReports() {
             onClick={() => handleDownload(lastMonth.jYear, lastMonth.jMonth)}
             className="bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white rounded-lg px-5 py-2.5 font-medium"
           >
-            {downloading ? "در حال ساخت فایل..." : `دانلود گزارش ${lastMonth.label}`}
+            {downloading && <Spinner />}{downloading ? "در حال ساخت فایل..." : `دانلود گزارش ${lastMonth.label}`}
           </button>
         ) : (
           <p className="text-sm text-gray-400 dark:text-slate-400">در حال بارگذاری...</p>
@@ -94,8 +97,7 @@ export default function MonthlyReports() {
         {availableMonths.length > 0 && (
           <div className="mt-5 pt-4 border-t border-gray-100 dark:border-slate-700 flex items-center gap-2 flex-wrap">
             <span className="text-sm text-gray-500 dark:text-slate-300">گزارش ماه دیگر:</span>
-            <select
-              className="input w-auto"
+            <select className="select-modern input w-auto"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
             >

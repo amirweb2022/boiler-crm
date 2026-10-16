@@ -29,3 +29,22 @@ The two Tehran calendar days before an inspection due date during which an admin
 
 **Monthly inspection report**:
 A workbook summarizing inspection devices tested in one Jalali month, with separate sheets for each equipment type.
+
+**Inspection work queue**:
+The dashboard view of companies whose current inspection cycles need review or action.
+_Avoid_: Task list, ticket queue
+
+**Cycle status**:
+The visible state of a company's current inspection cycle, including pending, due, overdue, and completed states.
+_Avoid_: Company status when referring to the inspection lifecycle
+
+**Exclusion state**:
+The cycle-specific state showing that an inspection device was intentionally excluded with an administrator-provided reason.
+_Avoid_: Deleted device, skipped device
+
+**Certificate action**:
+An operation on a current-cycle certificate, including generation, upload, replacement, download, and sharing.
+_Avoid_: File action
+
+**User provisioning**:
+The admin-only operation of creating an active CRM account for an administrator or tester. It requires a phone number, full name, password, and role; it is distinct from a company contact, who does not have CRM credentials.

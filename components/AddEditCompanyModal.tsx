@@ -84,8 +84,7 @@ export default function AddEditCompanyModal({ company, onClose, onSaved }: Props
         <h2 className="text-lg font-bold mb-4">{isEdit ? "ویرایش شرکت" : "افزودن شرکت جدید"}</h2>
 
         <Field label="شرکت">
-          <select
-            className="input"
+          <select className="select-modern input"
             value={catalogCode}
             onChange={(e) => setCatalogCode(e.target.value)}
             disabled={isEdit}

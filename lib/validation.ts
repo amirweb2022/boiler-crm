@@ -29,6 +29,21 @@ export const loginSchema = z.object({
   password: z.string().min(1, "رمزعبور الزامی است").max(200),
 });
 
+const strongPasswordSchema = z.string().min(8, "رمز عبور باید حداقل ۸ کاراکتر باشد").max(200)
+  .regex(/[A-Za-z]/, "رمز عبور باید حداقل یک حرف داشته باشد")
+  .regex(/\d/, "رمز عبور باید حداقل یک عدد داشته باشد");
+
+export const createUserSchema = z.object({
+  phone: phoneSchema,
+  fullName: z.string().trim().min(1, "نام و نام خانوادگی الزامی است").max(120),
+  password: strongPasswordSchema,
+  passwordConfirmation: z.string().max(200),
+  role: z.enum(["admin", "tester"]),
+}).refine((value) => value.password === value.passwordConfirmation, {
+  message: "تکرار رمز عبور با رمز عبور یکسان نیست",
+  path: ["passwordConfirmation"],
+});
+
 export const createCompanySchema = z.object({
   catalogCode: z.string().trim().min(1).max(20),
   phone: phoneSchema,

@@ -11,7 +11,7 @@ The application helps a small inspection team track companies, their steam boile
 | `admin` | Manage companies and vessels, record exclusions and completions, generate and upload certificates, download reports, and view audit logs. |
 | `tester` | View the company dashboard and mark or unmark vessels as tested once their due date has arrived. The dashboard also exposes links to current uploaded certificates. |
 
-Admins are provisioned by `scripts/create-admin.ts`, not by a sign-up page. Login accepts an Iranian mobile number and password; a signed HTTP-only session cookie lasts eight hours. `middleware.ts` checks the token for protected paths, while API routes reload the active admin and enforce roles. Failed logins are counted by phone in a rolling 15-minute window; five failures cause a temporary block. The history screen and API expose recorded actions to admins.
+Admins can provision active admin or tester accounts from the admin-only user-management page; `scripts/create-admin.ts` remains available for initial/bootstrap setup. Login accepts an Iranian mobile number and password; a signed HTTP-only session cookie lasts eight hours. `middleware.ts` checks the token for protected paths, while API routes reload the active admin and enforce roles. Failed logins are counted by phone in a rolling 15-minute window; five failures cause a temporary block. The history screen and API expose recorded actions to admins.
 
 ## Inspection lifecycle
 

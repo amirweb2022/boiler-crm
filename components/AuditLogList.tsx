@@ -111,8 +111,7 @@ export default function AuditLogList() {
             setSearch(e.target.value);
           }}
         />
-        <select
-          className="input w-auto"
+        <select className="select-modern input w-auto"
           value={entityType}
           onChange={(e) => {
             setPage(1);
@@ -127,8 +126,7 @@ export default function AuditLogList() {
           <option value="region_map">نگاشت منطقه</option>
           <option value="admin">ادمین</option>
         </select>
-        <select
-          className="input w-auto"
+        <select className="select-modern input w-auto"
           value={action}
           onChange={(e) => {
             setPage(1);
@@ -142,8 +140,7 @@ export default function AuditLogList() {
             </option>
           ))}
         </select>
-        <select
-          className="input w-auto"
+        <select className="select-modern input w-auto"
           value={pageSize}
           onChange={(e) => {
             setPage(1);

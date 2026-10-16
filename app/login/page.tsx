@@ -1,75 +1,132 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import ThemeMenu from "../../components/ThemeMenu";
+import { Button, Card, Spinner } from "../../components/ui";
 
 export default function LoginPage() {
   const router = useRouter();
+
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
     setError(null);
     setLoading(true);
+
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ phone, password }),
       });
+
       const json = await res.json();
+
       if (!res.ok) {
         setError(json.error ?? "خطا در ورود");
         return;
       }
+
       router.push("/dashboard");
       router.refresh();
+    } catch {
+      setError("ارتباط با سرور برقرار نشد. دوباره تلاش کنید.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="absolute left-4 top-4"><ThemeMenu /></div>
-      <form onSubmit={handleSubmit} className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-8">
-        <h1 className="text-xl font-bold text-center mb-1">ورود مدیر سیستم</h1>
-        <p className="text-sm text-gray-500 dark:text-slate-300 text-center mb-6">سامانه مدیریت آزمون دیگ بخار</p>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-100 px-4 dark:bg-slate-950">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(79,70,229,0.18),_transparent_35%),radial-gradient(circle_at_bottom_left,_rgba(13,148,136,0.14),_transparent_35%)]" />
 
-        <label className="block text-sm mb-1.5 text-gray-700 dark:text-slate-200">شماره موبایل</label>
-        <input
-          type="tel"
-          inputMode="numeric"
-          dir="ltr"
-          placeholder="09121234567"
-          className="input mb-4 text-right"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          required
-        />
+      <div className="absolute left-4 top-4">
+        <ThemeMenu />
+      </div>
 
-        <label className="block text-sm mb-1.5 text-gray-700 dark:text-slate-200">رمزعبور</label>
-        <input
-          type="password"
-          className="input mb-4"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+      <form
+        onSubmit={handleSubmit}
+        className="relative w-full max-w-md"
+      >
+        <Card className="p-8 sm:p-10">
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-indigo-600 text-2xl text-white shadow-lg shadow-indigo-600/25">
+              ♨
+            </div>
 
-        {error && <p className="text-sm text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-950/50 rounded-lg px-3 py-2 mb-4">{error}</p>}
+            <h1 className="text-2xl font-bold">ورود به سامانه</h1>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white rounded-lg py-2.5 font-medium transition"
-        >
-          {loading ? "در حال ورود..." : "ورود"}
-        </button>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              مدیریت آزمون دیگ بخار و تجهیزات تحت فشار
+            </p>
+          </div>
+
+          <label
+            htmlFor="phone"
+            className="mb-1.5 block text-sm text-gray-700 dark:text-slate-200"
+          >
+            شماره موبایل
+          </label>
+
+          <input
+            id="phone"
+            name="phone"
+            type="tel"
+            inputMode="numeric"
+            dir="ltr"
+            autoComplete="tel"
+            placeholder="09121234567"
+            className="input mb-5 text-right"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+          />
+
+          <label
+            htmlFor="password"
+            className="mb-1.5 block text-sm text-gray-700 dark:text-slate-200"
+          >
+            رمز عبور
+          </label>
+
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            className="input mb-5"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+
+          {error && (
+            <p
+              role="alert"
+              className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/50 dark:text-red-300"
+            >
+              {error}
+            </p>
+          )}
+
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full"
+          >
+            {loading && <Spinner />}
+            {loading ? "در حال ورود..." : "ورود به سامانه"}
+          </Button>
+        </Card>
       </form>
     </div>
   );

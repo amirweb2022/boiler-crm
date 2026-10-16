@@ -65,7 +65,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const updated = updatedRows[0];
 
     const sms = getSmsProvider();
-    const message = `گواهی آزمون دیگ بخار شرکت ${company.name} صادر شد.\nلینک دانلود: ${publicUrl}`;
+    const message = `مشتری گرامی، ${company.name}
+گواهی ارزیابی ایمنی تجهیزات شما آماده و از طریق پست/تیپاکس ارسال شد. جهت مشاهده گواهی به لینک زیر مراجعه کنید:
+${publicUrl}
+اخگر صنعت پویا`;
     const smsResult = await sms.send({ phone: company.phone, message });
 
     try { await query(`INSERT INTO notifications(company_id,test_record_id,phone,message,type,status,provider_ref,sent_at) VALUES($1,$2,$3,$4,'certificate_ready',$5,$6,$7)`,[company.id,testRecord.id,company.phone,message,smsResult.success?'sent':'failed',smsResult.providerRef??null,smsResult.success?new Date():null]); }

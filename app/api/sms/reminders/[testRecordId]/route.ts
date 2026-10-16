@@ -6,6 +6,7 @@ import { getSmsProvider } from "../../../../../lib/sms";
 import { calendarDaysUntil, getTehranClock, isReminderSendTime } from "../../../../../lib/sms/reminder-policy";
 import { query } from "../../../../../lib/db/postgres";
 import { parseOrThrow, uuidSchema, ValidationError } from "../../../../../lib/validation";
+import { toShamsiDisplay } from "../../../../../lib/date/shamsi";
 
 export async function POST(
   request: Request,
@@ -37,7 +38,11 @@ export async function POST(
       return NextResponse.json({ error: "یادآوری این چرخه قبلاً ارسال شده یا در حال ارسال است" }, { status: 409 });
     }
 
-    const message = `یادآوری: ${remainingDays} روز تا تاریخ آزمون دیگ بخار شرکت ${company.name} باقی مانده است. لطفاً هماهنگی لازم را انجام دهید.`;
+    const message = `مشتری گرامی، ${company.name}
+مهلت تست سالانه ارزیابی ایمنی تجهیزات شما در تاریخ ${toShamsiDisplay(record.test_date)} می‌رسد. جهت دریافت پیش‌فاکتور و هماهنگی زمان تست، با شماره 02833991320-2
+https://rubika.ir/akhgar_industrial_group
+تماس بگیرید.
+اخگر صنعت پویا`;
     let result: { success: boolean; providerRef?: string; error?: string };
     try {
       result = await getSmsProvider().send({ phone: company.phone, message });

@@ -86,8 +86,7 @@ export default function AddEditVesselModal({
           <label className="block text-sm mb-1.5 text-gray-700 dark:text-slate-200">
             نوع تجهیز
           </label>
-          <select
-            className="input"
+          <select className="select-modern input"
             value={type}
             onChange={(e) => handleTypeChange(e.target.value as typeof type)}
           >
