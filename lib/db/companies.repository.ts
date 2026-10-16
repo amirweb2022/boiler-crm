@@ -4,6 +4,24 @@ import { isUniqueViolation, query, transaction } from "./postgres";
 import { ValidationError } from "../validation";
 import type { Company, TestRecord, Vessel, CompanyWithDetails, CompanyListFilters, PaginatedResult, CreateCompanyInput, UpdateCompanyInput } from "../../types";
 
+export async function getDashboardStats() {
+  const today = "(now() AT TIME ZONE 'Asia/Tehran')::date";
+  const { rows } = await query(`
+    SELECT
+      (SELECT count(*)::int FROM test_records WHERE status='pending') AS current_cycles,
+      (SELECT count(*)::int FROM test_records WHERE status='pending' AND test_date BETWEEN ${today}+2 AND ${today}+30) AS near_due,
+      (SELECT count(*)::int FROM (SELECT DISTINCT company_id, cycle_count FROM test_history WHERE cycle_count IS NOT NULL) completed) AS completed_cycles,
+      (SELECT count(*)::int FROM test_records WHERE status='pending' AND certificate_uploaded=true) AS active_certificates
+  `);
+  const row = rows[0] ?? {};
+  return {
+    currentCycles: Number(row.current_cycles ?? 0),
+    nearDue: Number(row.near_due ?? 0),
+    completedCycles: Number(row.completed_cycles ?? 0),
+    activeCertificates: Number(row.active_certificates ?? 0),
+  };
+}
+
 const mapCompany = (r: any): Company => ({ id:r.id, catalogCode:r.catalog_code, name:r.name, phone:r.phone, contactName:r.contact_name ?? null, province:r.province, city:r.city, address:r.address, status:r.status, createdAt:r.created_at, updatedAt:r.updated_at, type:r.type });
 const mapTestRecord = (r: any): TestRecord => ({ id:r.id, companyId:r.company_id, testDate:r.test_date instanceof Date ? r.test_date.toISOString().slice(0,10) : String(r.test_date).slice(0,10), status:r.status, certificateUploaded:r.certificate_uploaded, certificateUrl:r.certificate_url, certificatePath:r.certificate_path, proofOfUploadPending:r.proof_of_upload_pending, doneAt:r.done_at, cycleCount:r.cycle_count, createdAt:r.created_at, updatedAt:r.updated_at });
 const mapVessel = (r: any): Vessel => ({ id:r.id, companyId:r.company_id, name:r.name, volume:r.volume, details:r.details ?? {}, tested:r.tested, status:r.status, exclusionReason:r.exclusion_reason, excludedAt:r.excluded_at, createdAt:r.created_at, updatedAt:r.updated_at, type:r.type });
