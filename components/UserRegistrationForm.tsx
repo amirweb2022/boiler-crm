@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { Card, Button, Spinner } from "./ui";
 import { useToast } from "./Toast";
 
@@ -10,6 +11,7 @@ export default function UserRegistrationForm() {
   const [form, setForm] = useState(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
   const { showToast } = useToast();
   const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
@@ -20,6 +22,7 @@ export default function UserRegistrationForm() {
       const json = await response.json().catch(() => ({}));
       if (!response.ok) { setError(json.error ?? "ساخت کاربر ناموفق بود"); return; }
       setForm(initial); showToast({ tone: "success", title: "کاربر ایجاد شد", description: "حساب کاربری فعال است و می‌تواند وارد سامانه شود." });
+      router.refresh();
     } catch { setError("ارتباط با سرور برقرار نشد. دوباره تلاش کنید."); }
     finally { setLoading(false); }
   }
