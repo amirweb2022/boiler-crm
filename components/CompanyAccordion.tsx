@@ -19,6 +19,7 @@ import CertificateUploadModal from "./CertificateUploadModal";
 import CertificateGenerateModal from "./CertificateGenerateModal";
 import { useToast } from "./Toast";
 import { Spinner } from "./ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 function getVesselTitle(vessel: Vessel): string {
   const details = vessel.details as Record<string, unknown>;
   if (vessel.type === "lift") return `بالابر — ${String(details.liftType ?? "")}`;
@@ -49,12 +50,37 @@ const PROXIMITY_LABEL: Record<
 };
 
 const PROVINCES = [
-  "تهران",
-  "اصفهان",
-  "فارس",
-  "خراسان رضوی",
   "آذربایجان شرقی",
+  "آذربایجان غربی",
+  "اردبیل",
+  "اصفهان",
+  "البرز",
+  "ایلام",
+  "بوشهر",
+  "تهران",
+  "چهارمحال و بختیاری",
+  "خراسان جنوبی",
+  "خراسان رضوی",
+  "خراسان شمالی",
+  "خوزستان",
+  "زنجان",
+  "سمنان",
+  "سیستان و بلوچستان",
+  "فارس",
+  "قزوین",
+  "قم",
+  "کردستان",
+  "کرمان",
+  "کرمانشاه",
+  "کهگیلویه و بویراحمد",
+  "گلستان",
   "گیلان",
+  "لرستان",
+  "مازندران",
+  "مرکزی",
+  "هرمزگان",
+  "همدان",
+  "یزد",
 ];
 
 export default function CompanyAccordion() {
@@ -231,57 +257,62 @@ export default function CompanyAccordion() {
   return (
     <div>
       {/* نوار جستجو و فیلترها */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="mb-5 flex flex-wrap items-center gap-2.5 rounded-2xl border bg-muted/35 p-3">
         <input
           placeholder="جستجو بر اساس نام، کد یا تلفن..."
-          className="flex-1 min-w-[220px] input"
+          className="input min-w-[220px] flex-1 bg-background"
           value={search}
           onChange={(e) => {
             setPage(1);
             setSearch(e.target.value);
           }}
         />
-        <select className="select-modern input w-auto"
+        <Select
           value={province}
-          onChange={(e) => {
+          onValueChange={(value) => {
             setPage(1);
-            setProvince(e.target.value);
+            setProvince(value);
           }}
         >
-          <option value="all">همه استان‌ها</option>
-          {PROVINCES.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-        <select className="select-modern input w-auto"
+          <SelectTrigger className="w-full sm:w-auto"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">همه استان‌ها</SelectItem>
+            {PROVINCES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select
           value={status}
-          onChange={(e) => {
+          onValueChange={(value) => {
             setPage(1);
-            setStatus(e.target.value as TestStatus | "all");
+            setStatus(value as TestStatus | "all");
           }}
         >
-          <option value="all">همه وضعیت‌ها</option>
-          <option value="pending">در انتظار</option>
-          <option value="done">انجام‌شده</option>
-        </select>
-        <select className="select-modern input w-auto"
+          <SelectTrigger className="w-full sm:w-auto"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">همه وضعیت‌ها</SelectItem>
+            <SelectItem value="pending">در انتظار</SelectItem>
+            <SelectItem value="done">انجام‌شده</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
           value={proximity}
-          onChange={(e) => {
+          onValueChange={(value) => {
             setPage(1);
-            setProximity(e.target.value as TestProximity | "all");
+            setProximity(value as TestProximity | "all");
           }}
         >
-          <option value="all">همه سررسیدها</option>
-          <option value="near_due">نزدیک سررسید</option>
-          <option value="due">سررسید</option>
-          <option value="overdue">معوق</option>
-        </select>
+          <SelectTrigger className="w-full sm:w-auto"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">همه سررسیدها</SelectItem>
+            <SelectItem value="near_due">نزدیک سررسید</SelectItem>
+            <SelectItem value="due">سررسید</SelectItem>
+            <SelectItem value="overdue">معوق</SelectItem>
+          </SelectContent>
+        </Select>
         {isAdmin && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="mr-auto bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg px-4 py-2"
+            className="mr-auto rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
           >
             + افزودن شرکت جدید
           </button>
@@ -296,7 +327,7 @@ export default function CompanyAccordion() {
       )}
 
       {/* لیست آکاردئونی شرکت‌ها */}
-      <div className="space-y-3">
+      <div className="space-y-3.5">
         {loading && (
           <p className="text-center text-gray-400 dark:text-slate-400 py-8">در حال بارگذاری...</p>
         )}
@@ -314,12 +345,12 @@ export default function CompanyAccordion() {
             return (
               <div
                 key={c.id}
-                className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden"
+                className="overflow-hidden rounded-2xl border bg-card shadow-sm transition-shadow hover:shadow-md"
               >
                 {/* هدر شرکت */}
                 <button
                   onClick={() => setExpandedId(isOpen ? null : c.id)}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-right hover:bg-gray-50 dark:hover:bg-slate-800"
+                  className="flex w-full items-center justify-between gap-3 px-4 py-4 text-right transition-colors hover:bg-muted/60 sm:px-5"
                 >
                   <div className="flex items-center gap-3 flex-wrap">
                     <span className="font-semibold">{c.name}</span>
@@ -341,7 +372,7 @@ export default function CompanyAccordion() {
                 </button>
 
                 {isOpen && (
-                  <div className="border-t border-gray-100 dark:border-slate-700 px-4 py-4 bg-gray-50/50 dark:bg-slate-800/60">
+                  <div className="border-t bg-muted/25 px-4 py-4 sm:px-5 sm:py-5">
                     {/* اطلاعات تماس + عملیات شرکت */}
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-4 text-sm text-gray-600 dark:text-slate-300">
                       <div className="flex gap-4 flex-wrap">
@@ -370,7 +401,7 @@ export default function CompanyAccordion() {
                     </div>
 
                     {/* لیست مخازن */}
-                    <div className="bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700 divide-y divide-gray-100 dark:divide-slate-700">
+                    <div className="divide-y divide-border overflow-hidden rounded-xl border bg-card">
                       {c.vessels.length === 0 && (
                         <p className="text-sm text-gray-400 dark:text-slate-400 text-center py-4">
                           هنوز مخزنی اضافه نشده است

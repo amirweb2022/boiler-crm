@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { toShamsiDateTime } from "../lib/date/shamsi";
 import type { AuditLogEntry, PaginatedAuditLogs } from "../lib/db/audit.repository";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 const ENTITY_TYPE_LABEL: Record<string, string> = {
   company: "شرکت",
@@ -101,7 +102,7 @@ export default function AuditLogList() {
   return (
     <div>
       {/* فیلترها */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="mb-5 flex flex-wrap items-center gap-2.5 rounded-2xl border bg-muted/35 p-3">
         <input
           placeholder="جستجو بر اساس شماره ادمین..."
           className="flex-1 min-w-[200px] input"
@@ -111,50 +112,59 @@ export default function AuditLogList() {
             setSearch(e.target.value);
           }}
         />
-        <select className="select-modern input w-auto"
+        <Select
           value={entityType}
-          onChange={(e) => {
+          onValueChange={(value) => {
             setPage(1);
-            setEntityType(e.target.value);
+            setEntityType(value);
           }}
         >
-          <option value="all">همه نوع رکوردها</option>
-          <option value="company">شرکت</option>
-          <option value="vessel">مخزن</option>
-          <option value="test_record">رکورد تست</option>
-          <option value="report">گزارش</option>
-          <option value="region_map">نگاشت منطقه</option>
-          <option value="admin">ادمین</option>
-        </select>
-        <select className="select-modern input w-auto"
+          <SelectTrigger className="w-full sm:w-auto"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">همه نوع رکوردها</SelectItem>
+            <SelectItem value="company">شرکت</SelectItem>
+            <SelectItem value="vessel">مخزن</SelectItem>
+            <SelectItem value="test_record">رکورد تست</SelectItem>
+            <SelectItem value="report">گزارش</SelectItem>
+            <SelectItem value="region_map">نگاشت منطقه</SelectItem>
+            <SelectItem value="admin">ادمین</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
           value={action}
-          onChange={(e) => {
+          onValueChange={(value) => {
             setPage(1);
-            setAction(e.target.value);
+            setAction(value);
           }}
         >
-          <option value="all">همه عملیات‌ها</option>
+          <SelectTrigger className="w-full sm:w-auto"><SelectValue /></SelectTrigger>
+          <SelectContent>
+          <SelectItem value="all">همه عملیات‌ها</SelectItem>
           {Object.entries(ACTION_LABEL).map(([key, label]) => (
-            <option key={key} value={key}>
+            <SelectItem key={key} value={key}>
               {label}
-            </option>
+            </SelectItem>
           ))}
-        </select>
-        <select className="select-modern input w-auto"
-          value={pageSize}
-          onChange={(e) => {
+          </SelectContent>
+        </Select>
+        <Select
+          value={String(pageSize)}
+          onValueChange={(value) => {
             setPage(1);
-            setPageSize(Number(e.target.value));
+            setPageSize(Number(value));
           }}
         >
-          <option value={10}>۱۰ در صفحه</option>
-          <option value={20}>۲۰ در صفحه</option>
-          <option value={50}>۵۰ در صفحه</option>
-        </select>
+          <SelectTrigger className="w-full sm:w-auto"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="10">۱۰ در صفحه</SelectItem>
+            <SelectItem value="20">۲۰ در صفحه</SelectItem>
+            <SelectItem value="50">۵۰ در صفحه</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* لیست تاریخچه */}
-      <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 divide-y divide-gray-100 dark:divide-slate-700">
+      <div className="divide-y divide-border overflow-hidden rounded-2xl border bg-card shadow-sm">
         {loading && <p className="text-center text-gray-400 dark:text-slate-400 py-8">در حال بارگذاری...</p>}
         {!loading && rows.length === 0 && <p className="text-center text-gray-400 dark:text-slate-400 py-8">رکوردی یافت نشد</p>}
 
@@ -165,7 +175,7 @@ export default function AuditLogList() {
               <div key={log.id}>
                 <button
                   onClick={() => setExpandedId(isExpanded ? null : log.id)}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-right hover:bg-gray-50 dark:hover:bg-slate-800"
+                  className="flex w-full items-center justify-between gap-3 px-4 py-4 text-right transition-colors hover:bg-muted/60 sm:px-5"
                 >
                   <div className="flex items-center gap-3 flex-wrap text-sm">
                     <span className="text-gray-400 dark:text-slate-400 whitespace-nowrap" dir="ltr">
@@ -181,7 +191,7 @@ export default function AuditLogList() {
                 </button>
 
                 {isExpanded && (
-                  <div className="px-4 pb-4 text-xs text-gray-500 dark:text-slate-300 bg-gray-50/50 dark:bg-slate-800/60">
+                  <div className="border-t bg-muted/30 px-4 pb-4 pt-3 text-xs text-muted-foreground sm:px-5">
                     <div className="grid grid-cols-2 gap-2 mb-2">
                       <span>شماره ادمین: {log.adminPhone ?? "—"}</span>
                       <span dir="ltr">IP: {log.ipAddress ?? "—"}</span>

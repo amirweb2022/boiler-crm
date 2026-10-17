@@ -10,6 +10,7 @@ import gregorian_en from "react-date-object/locales/gregorian_en";
 import { dateObjectToISO } from "../lib/date/shamsi";
 import { COMPANIES_CATALOG } from "../lib/data/companies-catalog";
 import type { CompanyWithDetails } from "../types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface Props {
   company?: CompanyWithDetails;
@@ -79,26 +80,26 @@ export default function AddEditCompanyModal({ company, onClose, onSaved }: Props
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm">
+      <form onSubmit={handleSubmit} className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border bg-card p-6 shadow-2xl sm:p-7">
         <h2 className="text-lg font-bold mb-4">{isEdit ? "ویرایش شرکت" : "افزودن شرکت جدید"}</h2>
 
         <Field label="شرکت">
-          <select className="select-modern input"
-            value={catalogCode}
-            onChange={(e) => setCatalogCode(e.target.value)}
+          <Select
+            value={catalogCode || undefined}
+            onValueChange={setCatalogCode}
             disabled={isEdit}
             required
           >
-            <option value="" disabled>
-              انتخاب کنید...
-            </option>
+            <SelectTrigger><SelectValue placeholder="انتخاب کنید..." /></SelectTrigger>
+            <SelectContent>
             {COMPANIES_CATALOG.map((c) => (
-              <option key={c.code} value={c.code}>
+              <SelectItem key={c.code} value={c.code}>
                 {c.name} — {c.code}
-              </option>
+              </SelectItem>
             ))}
-          </select>
+            </SelectContent>
+          </Select>
         </Field>
 
         <Field label="شماره تلفن">

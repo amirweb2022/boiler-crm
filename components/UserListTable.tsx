@@ -5,7 +5,7 @@ import type { Admin } from "../types";
 export default function UserListTable({ users }: { users: Admin[] }) {
   return (
     <Card className="mt-6 overflow-hidden">
-      <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+      <div className="flex items-center justify-between border-b px-5 py-4">
         <h2 className="text-lg font-bold text-slate-950 dark:text-white">فهرست کاربران</h2>
       </div>
       {users.length === 0 ? (
@@ -13,7 +13,7 @@ export default function UserListTable({ users }: { users: Admin[] }) {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-right text-sm">
-            <thead className="bg-slate-50 text-slate-600 dark:bg-slate-950/50 dark:text-slate-300">
+            <thead className="bg-muted/70 text-muted-foreground">
               <tr>
                 <th scope="col" className="px-5 py-3 font-semibold">نام</th>
                 <th scope="col" className="px-5 py-3 font-semibold">شماره موبایل</th>
@@ -23,9 +23,9 @@ export default function UserListTable({ users }: { users: Admin[] }) {
                 <th scope="col" className="px-5 py-3 font-semibold">آخرین ورود</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-border">
               {users.map((user) => (
-                <tr key={user.id} className="text-slate-700 dark:text-slate-200">
+                <tr key={user.id} className="text-foreground transition-colors hover:bg-muted/40">
                   <td className="px-5 py-3.5">{user.fullName || "—"}</td>
                   <td className="px-5 py-3.5" dir="ltr">{user.phone}</td>
                   <td className="px-5 py-3.5">{user.role === "admin" ? "مدیر" : "بازرس"}</td>

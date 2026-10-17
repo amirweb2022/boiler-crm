@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useToast } from "./Toast";
 import { Spinner } from "./ui";
+import { CalendarDays, Download } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface MonthInfo {
   jYear: number;
@@ -75,8 +77,8 @@ export default function MonthlyReports() {
   return (
     <div className="space-y-8">
       {/* دانلود گزارش ماه اخیر */}
-      <section className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
-        <h2 className="font-bold mb-1">گزارش ماهانه</h2>
+      <section className="rounded-2xl border bg-card p-5 shadow-sm sm:p-7">
+        <div className="mb-4 flex items-center gap-3"><span className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary"><CalendarDays className="size-5" /></span><h2 className="font-bold">گزارش ماهانه</h2></div>
         <p className="text-sm text-gray-500 dark:text-slate-300 mb-4">
           گزارش هر ماه از روز اول ماه بعد، برای دانلود آماده است.
         </p>
@@ -85,9 +87,9 @@ export default function MonthlyReports() {
           <button
             disabled={downloading}
             onClick={() => handleDownload(lastMonth.jYear, lastMonth.jMonth)}
-            className="bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white rounded-lg px-5 py-2.5 font-medium"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-60"
           >
-            {downloading && <Spinner />}{downloading ? "در حال ساخت فایل..." : `دانلود گزارش ${lastMonth.label}`}
+            {downloading ? <Spinner /> : <Download className="size-4" />}{downloading ? "در حال ساخت فایل..." : `دانلود گزارش ${lastMonth.label}`}
           </button>
         ) : (
           <p className="text-sm text-gray-400 dark:text-slate-400">در حال بارگذاری...</p>
@@ -97,17 +99,19 @@ export default function MonthlyReports() {
         {availableMonths.length > 0 && (
           <div className="mt-5 pt-4 border-t border-gray-100 dark:border-slate-700 flex items-center gap-2 flex-wrap">
             <span className="text-sm text-gray-500 dark:text-slate-300">گزارش ماه دیگر:</span>
-            <select className="select-modern input w-auto"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
+            <Select
+              value={selectedMonth || undefined}
+              onValueChange={setSelectedMonth}
             >
-              <option value="">انتخاب کنید...</option>
+              <SelectTrigger className="w-full sm:w-auto"><SelectValue placeholder="انتخاب کنید..." /></SelectTrigger>
+              <SelectContent>
               {availableMonths.map((m) => (
-                <option key={`${m.jYear}-${m.jMonth}`} value={`${m.jYear}-${m.jMonth}`}>
+                <SelectItem key={`${m.jYear}-${m.jMonth}`} value={`${m.jYear}-${m.jMonth}`}>
                   {m.label}
-                </option>
+                </SelectItem>
               ))}
-            </select>
+              </SelectContent>
+            </Select>
             <button
               disabled={!selectedMonth || downloading}
               onClick={() => {

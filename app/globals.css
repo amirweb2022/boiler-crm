@@ -2,45 +2,72 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --background: 210 30% 98%;
+    --foreground: 222 32% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 32% 13%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 32% 13%;
+    --primary: 173 77% 26%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 25% 94%;
+    --secondary-foreground: 222 30% 20%;
+    --muted: 210 25% 95%;
+    --muted-foreground: 215 16% 45%;
+    --accent: 174 40% 92%;
+    --accent-foreground: 173 77% 22%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 22% 88%;
+    --input: 214 22% 84%;
+    --ring: 173 77% 26%;
+    --radius: 0.8rem;
+  }
+  .dark {
+    --background: 222 34% 9%;
+    --foreground: 210 25% 94%;
+    --card: 222 30% 12%;
+    --card-foreground: 210 25% 94%;
+    --popover: 222 30% 12%;
+    --popover-foreground: 210 25% 94%;
+    --primary: 172 60% 44%;
+    --primary-foreground: 222 38% 9%;
+    --secondary: 218 22% 19%;
+    --secondary-foreground: 210 25% 92%;
+    --muted: 218 22% 17%;
+    --muted-foreground: 215 16% 66%;
+    --accent: 174 35% 18%;
+    --accent-foreground: 172 60% 76%;
+    --destructive: 0 62% 43%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 218 20% 22%;
+    --input: 218 20% 25%;
+    --ring: 172 60% 44%;
+  }
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground antialiased; }
+  button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+  ::selection { background: hsl(var(--primary) / .18); }
+}
+
 @layer components {
   .input {
-    @apply w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500;
+    @apply h-10 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50;
   }
 }
 
-* { border-color: theme('colors.slate.200'); }
-body { background: #f8fafc; }
-.dark body { background: #020617; }
-button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
-
-html {
-  direction: rtl;
-}
-
-html.dark {
-  color-scheme: dark;
-}
-
+html { direction: rtl; }
+html.dark { color-scheme: dark; }
 .dark .crm-date-picker.rmdp-wrapper,
 .dark .crm-date-picker .rmdp-month-picker,
 .dark .crm-date-picker .rmdp-year-picker,
-.dark .rmdp-container .crm-date-picker.ep-arrow::after {
-  background-color: #1e293b;
-  color: #e2e8f0;
-}
-
+.dark .rmdp-container .crm-date-picker.ep-arrow::after { background-color: hsl(var(--card)); color: hsl(var(--foreground)); }
 .dark .crm-date-picker .rmdp-header-values,
 .dark .crm-date-picker .rmdp-week-day,
 .dark .crm-date-picker .rmdp-day:not(.rmdp-deactive),
-.dark .crm-date-picker .rmdp-panel-header {
-  color: #e2e8f0;
-}
-
+.dark .crm-date-picker .rmdp-panel-header { color: hsl(var(--foreground)); }
 .dark .crm-date-picker .rmdp-day.rmdp-disabled,
-.dark .crm-date-picker .rmdp-day.rmdp-deactive {
-  color: #94a3b8;
-}
-
-.select-modern { appearance: none; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: calc(100% - 1rem) 50%, calc(100% - .7rem) 50%; background-size: .35rem .35rem, .35rem .35rem; background-repeat: no-repeat; padding-inline-end: 2.5rem; }
-
+.dark .crm-date-picker .rmdp-day.rmdp-deactive { color: hsl(var(--muted-foreground)); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }

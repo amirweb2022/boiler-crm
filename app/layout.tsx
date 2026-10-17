@@ -16,7 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fa" dir="rtl" suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: initializeTheme }} /></head>
-      <body className={`${vazirmatn.variable} font-vazir bg-gray-50 text-gray-900 dark:bg-slate-950 dark:text-slate-100`}><ToastProvider>{children}</ToastProvider></body>
+      <body className={`${vazirmatn.variable} font-vazir`}><ToastProvider>{children}</ToastProvider></body>
     </html>
   );
 }

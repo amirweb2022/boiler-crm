@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Vessel } from "../types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface Props {
   companyId: string;
@@ -74,10 +75,10 @@ export default function AddEditVesselModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm">
       <form
         onSubmit={handleSubmit}
-        className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-sm p-6"
+        className="w-full max-w-sm rounded-2xl border bg-card p-6 shadow-2xl sm:p-7"
       >
         <h2 className="text-lg font-bold mb-4">
           {isEdit ? "ویرایش دستگاه" : "افزودن دستگاه"}
@@ -86,16 +87,19 @@ export default function AddEditVesselModal({
           <label className="block text-sm mb-1.5 text-gray-700 dark:text-slate-200">
             نوع تجهیز
           </label>
-          <select className="select-modern input"
+          <Select
             value={type}
-            onChange={(e) => handleTypeChange(e.target.value as typeof type)}
+            onValueChange={(value) => handleTypeChange(value as typeof type)}
           >
-            <option value="tank">مخزن</option>
-            <option value="boiler">دیگ بخار</option>
-            <option value="lift">بالابر</option>
-            <option value="forklift">لیفتراک</option>
-            <option value="grounding">ارت</option>
-          </select>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tank">مخزن</SelectItem>
+              <SelectItem value="boiler">دیگ بخار</SelectItem>
+              <SelectItem value="lift">بالابر</SelectItem>
+              <SelectItem value="forklift">لیفتراک</SelectItem>
+              <SelectItem value="grounding">ارت</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         {legacyType ? <>
           <div className="mb-4">

@@ -93,10 +93,10 @@ export default function ReminderMenu() {
   const isBusy = sendingId !== null || batch !== null;
 
   const reminderButtonClass = useMemo(() => {
-    const base = "relative rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+    const base = "relative inline-flex h-9 items-center rounded-xl px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm";
     return reminders.length && canSend
-      ? `${base} bg-amber-500 text-white shadow-md shadow-amber-500/30 ring-2 ring-amber-300 animate-pulse hover:bg-amber-600`
-      : `${base} bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700`;
+      ? `${base} bg-amber-500 text-white shadow-sm shadow-amber-500/25 ring-1 ring-amber-300 animate-pulse hover:bg-amber-600`
+      : `${base} border border-input bg-background text-foreground shadow-sm hover:bg-accent`;
   }, [reminders.length, canSend]);
 
   if (!isAdmin) return null;
@@ -166,7 +166,7 @@ export default function ReminderMenu() {
       </button>
 
       {open && (
-        <div role="dialog" aria-label="یادآوری‌های پیامکی" className="absolute left-0 z-[70] mt-2 w-[min(26rem,calc(100vw-2rem))] rounded-xl border border-gray-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+        <div role="dialog" aria-label="یادآوری‌های پیامکی" className="absolute left-0 z-[70] mt-2 w-[min(26rem,calc(100vw-2rem))] rounded-2xl border bg-popover p-4 text-popover-foreground shadow-2xl">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="font-bold">یادآوری‌های نیازمند ارسال</h2>
             <button type="button" className="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white" onClick={() => setOpen(false)}>بستن</button>

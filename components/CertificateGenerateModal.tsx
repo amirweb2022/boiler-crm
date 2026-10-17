@@ -77,8 +77,8 @@ export default function CertificateGenerateModal({ vessel, onClose, onGenerated 
   const otherFields = fields.filter((f) => f.group !== "thickness");
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border bg-card p-6 shadow-2xl sm:p-7">
         <h2 className="text-lg font-bold mb-1">تولید گواهی — {vessel.name}</h2>
         <p className="text-sm text-gray-500 dark:text-slate-300 mb-4">
           نام/نشانی شرکت، حجم مخزن، و تاریخ آزمون خودکار از سیستم درج می‌شوند. فقط فیلدهای زیر را کامل کن.
