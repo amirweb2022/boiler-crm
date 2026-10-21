@@ -25,6 +25,14 @@ export const COMPANIES_CATALOG: CompanyCatalogEntry[] = [
   { code: "AS08", name: "نساجی قائمشهر" },
   { code: "AS09", name: "شیشه قزوین" },
   { code: "AS10", name: "کاغذ سازی پارس" },
+  { code: "AS11", name: "سی سام" },
+  { code: "AS12", name: "کابل البرز" },
+  { code: "AS13", name: "سیمان آبیک" },
+  { code: "AS14", name: "پوشینه پلاستیک" },
+  { code: "AS15", name: "ماه نخ" },
+  { code: "AS16", name: "سمبل شیمی" },
+  { code: "AS17", name: "سیمان خزر" },
+  { code: "AS18", name: "فراز شیمی ماهان" },
 ];
 
 export function findCatalogEntry(code: string): CompanyCatalogEntry | undefined {
